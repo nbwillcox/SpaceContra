@@ -100,55 +100,16 @@
     return (x - c.x) * (x - c.x) + (y - c.y) * (y - c.y) < (c.r + 8) * (c.r + 8);
   };
 
-  /* ---------- drawing ---------- */
-  function drawWall(ctx, g, b, sx, fl, ex) {
-    const cam = g.cam.x, c = b.core, t = b.t, x0 = sx - 36, w = 190;
-    ctx.fillStyle = GFX.lg(ctx, x0, 0, x0 + w, 0, [[0, '#8a96b4'], [0.5, '#4a5470'], [1, '#232a40']]); ctx.fillRect(x0, FL - 410, w, 410);
-    ctx.strokeStyle = 'rgba(255,255,255,0.14)'; ctx.lineWidth = 1.4; for (let y = FL - 400; y < FL; y += 38) { ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x0 + w, y); ctx.stroke(); }
-    ctx.strokeStyle = '#ffb347'; ctx.lineWidth = 3; ctx.strokeRect(x0, FL - 410, w, 410);
-    for (const p of b.parts) {
-      if (!p.alive) continue;
-      const a = Math.atan2(g.player.y - p.y, g.player.x - p.x), px = p.x - cam;
-      ctx.strokeStyle = '#e8d0b0'; ctx.lineWidth = 9; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(px, p.y); ctx.lineTo(px + Math.cos(a) * 30, p.y + Math.sin(a) * 30); ctx.stroke();
-      ctx.fillStyle = p.hitT > 0 ? '#fff' : GFX.rg(ctx, px - 4, p.y - 4, 2, p.r + 4, [[0, '#ffe0c0'], [1, '#5a2418']]); ctx.beginPath(); ctx.arc(px, p.y, p.r, 0, TAU); ctx.fill(); ctx.strokeStyle = '#ffc890'; ctx.lineWidth = 2; ctx.stroke();
-    }
-    ctx.fillStyle = ex ? 'rgba(255,60,60,' + (0.7 + 0.3 * Math.sin(t * 12)) + ')' : '#2a3048'; ctx.beginPath(); ctx.arc(c.x - cam, c.y, c.r, 0, TAU); ctx.fill(); ctx.strokeStyle = ex ? '#ffd0d0' : '#8a96b4'; ctx.lineWidth = 3; ctx.stroke();
-    if (!ex) { ctx.strokeStyle = '#1a1e30'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(c.x - cam - c.r, c.y); ctx.lineTo(c.x - cam + c.r, c.y); ctx.stroke(); } else { ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(c.x - cam, c.y, 8, 0, TAU); ctx.fill(); }
-  }
-  function drawWalker(ctx, b, sx, fl) {
-    const x = sx, y = FL + b.y, f = b.face, st = Math.sin(b.t * 6) * (b.air ? 0 : 8);
-    ctx.lineCap = 'round';
-    for (const sd of [-1, 1]) { ctx.beginPath(); ctx.moveTo(x + sd * 20, y - 70); ctx.lineTo(x + sd * 30 + st * sd, y - 34); ctx.lineTo(x + sd * 26 + st * sd, y); ctx.lineWidth = 16; ctx.strokeStyle = fl ? '#fff' : '#3a4668'; ctx.stroke(); }
-    ctx.fillStyle = fl ? '#ffffff' : GFX.lg(ctx, 0, y - 150, 0, y - 60, [[0, '#9aa8d0'], [1, '#3a4668']]); ctx.fillRect(x - 46, y - 150, 92, 84);
-    ctx.strokeStyle = '#d8e4ff'; ctx.lineWidth = 2.4; ctx.strokeRect(x - 46, y - 150, 92, 84);
-    ctx.fillStyle = fl ? '#fff' : '#6a7aa0'; ctx.beginPath(); ctx.arc(x + f * 6, y - 168, 22, 0, TAU); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = '#ff4a3a'; ctx.beginPath(); ctx.arc(x + f * 14, y - 170, 6, 0, TAU); ctx.fill();
-    ctx.strokeStyle = '#ffd0a0'; ctx.lineWidth = 12; ctx.beginPath(); ctx.moveTo(x + f * 30, y - 110); ctx.lineTo(x + f * 78, y - 100); ctx.stroke();
-  }
-  function drawHeart(ctx, b, sx, fl) {
-    const x = sx, y = b.core.y, t = b.t, pulse = 1 + Math.sin(t * 5) * 0.04;
-    ctx.fillStyle = GFX.rg(ctx, x - 14, y - 16, 6, 78 * pulse, fl ? [[0, '#fff'], [1, '#ffd0e0']] : [[0, '#ffc0d8'], [0.45, '#e0306c'], [1, '#3a0618']]); ctx.beginPath(); ctx.arc(x, y, 66 * pulse, 0, TAU); ctx.fill();
-    ctx.strokeStyle = 'rgba(70,0,30,0.5)'; ctx.lineWidth = 3; for (let i = 0; i < 6; i++) { const a = i / 6 * TAU + 0.3; ctx.beginPath(); ctx.moveTo(x + Math.cos(a) * 20, y + Math.sin(a) * 20); ctx.quadraticCurveTo(x + Math.cos(a + 0.5) * 44, y + Math.sin(a + 0.5) * 44, x + Math.cos(a) * 64, y + Math.sin(a) * 64); ctx.stroke(); }
-    ctx.fillStyle = '#1a0212'; ctx.beginPath(); ctx.ellipse(x, y, 26, 26 * (b.open ? 0.9 : 0.06), 0, 0, TAU); ctx.fill();
-    if (b.open) { ctx.fillStyle = '#ffec6a'; ctx.beginPath(); ctx.arc(x, y, 12, 0, TAU); ctx.fill(); ctx.fillStyle = '#2a0412'; ctx.fillRect(x - 2, y - 10, 4, 20); }
-    else { ctx.strokeStyle = '#ff9ac0'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(x - 30, y); ctx.lineTo(x + 30, y); ctx.stroke(); }
-  }
-  function drawShip(ctx, g, b, sx, ex) {
-    const cam = g.cam.x, x = sx, y = b.y, c = b.core;
-    ctx.fillStyle = GFX.lg(ctx, 0, y - 30, 0, y + 40, [[0, '#c8d4f0'], [0.5, '#6a789c'], [1, '#262e48']]); ctx.beginPath(); ctx.ellipse(x, y, 130, 38, 0, 0, TAU); ctx.fill(); ctx.strokeStyle = '#e0ecff'; ctx.lineWidth = 2.4; ctx.stroke();
-    ctx.fillStyle = 'rgba(120,220,255,0.6)'; ctx.beginPath(); ctx.ellipse(x, y - 22, 46, 20, 0, Math.PI, 0); ctx.fill();
-    for (const p of b.parts) { if (!p.alive) continue; ctx.fillStyle = p.hitT > 0 ? '#fff' : '#ffb06a'; ctx.beginPath(); ctx.arc(p.x - cam, p.y, p.r, 0, TAU); ctx.fill(); ctx.strokeStyle = '#fff0d0'; ctx.lineWidth = 2; ctx.stroke(); }
-    ctx.fillStyle = ex ? 'rgba(255,70,70,' + (0.7 + 0.3 * Math.sin(b.t * 12)) + ')' : '#3a4262'; ctx.beginPath(); ctx.arc(c.x - cam, c.y, c.r, 0, TAU); ctx.fill(); ctx.strokeStyle = '#e0ecff'; ctx.lineWidth = 2.4; ctx.stroke();
-  }
+  /* ---------- drawing (pixel sprites live in bossart.js) ---------- */
   Bo.draw = function (ctx, g, b) {
     if (b.state === 'done') return;
-    const sx = b.x - g.cam.x, fl = b.hit > 0, ex = Bo.exposed(b);
+    const A = GFX.art, sx = b.x - g.cam.x, fl = b.hit > 0, ex = Bo.exposed(b);
     ctx.save();
-    ctx.globalAlpha = b.state === 'dying' ? 0.5 + 0.5 * Math.sin(b.t * 40) : 1;
-    if (b.kind === 0) drawWall(ctx, g, b, sx, fl, ex);
-    else if (b.kind === 1) drawWalker(ctx, b, sx, fl);
-    else if (b.kind === 2) drawHeart(ctx, b, sx, fl);
-    else drawShip(ctx, g, b, sx, ex);
+    ctx.globalAlpha = b.state === 'dying' ? 0.55 + 0.45 * Math.sin(b.t * 40) : 1;
+    if (b.kind === 0) A.drawWall(ctx, g, b, sx, fl, ex);
+    else if (b.kind === 1) A.drawWalker(ctx, b, sx);
+    else if (b.kind === 2) A.drawHeart(ctx, b, sx);
+    else A.drawShip(ctx, g, b, sx, ex);
     ctx.restore();
   };
 })((window.SGS = window.SGS || {}));

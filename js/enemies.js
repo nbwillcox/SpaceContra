@@ -104,28 +104,25 @@
   };
 
   E.draw = function (ctx, g) {
-    const spr = GFX.spr, cam = g.cam.x;
+    const A = GFX.art, PX = G.px, th = g.st.theme, F = A.foes(th), L = A.fl, cam = g.cam.x;
     for (const e of g.en) {
       const sx = e.x - cam;
       if (sx < -80 || sx > W + 80) continue;
       const f = e.face > 0 ? -1 : 1, fl = e.flash > 0;
       switch (e.type) {
-        case 'grunt': GFX.draw(ctx, fl ? spr.flash.grunt : spr.grunt[Math.floor(e.t * 9) % 2], sx, e.y - 22, 0, f, 1); break;
-        case 'sniper': GFX.draw(ctx, fl ? spr.flash.sniper : spr.sniper, sx, e.y - 22, 0, f, 1); break;
-        case 'leaper': GFX.draw(ctx, fl ? spr.flash.leaper : spr.leaper, sx, e.y - 14, 0, f, 1); break;
-        case 'flyer': GFX.draw(ctx, fl ? spr.flash.flyer : spr.flyer[Math.floor(e.t * 10) % 2], sx, e.y, 0, 1, 1); break;
-        case 'pillbox': GFX.draw(ctx, fl ? spr.flash.pill : spr.pill[e.open ? 1 : 0], sx, e.y - 18, 0, 1, 1); break;
+        case 'grunt': PX.draw(ctx, (fl ? F.gruntF : F.grunt)[Math.floor(Math.abs(e.x) / 9) % 4], sx, e.y, f); break;
+        case 'sniper': PX.draw(ctx, (fl ? F.sniperF : F.sniper)[Math.floor(e.t * 1.6) % 2], sx, e.y, f); break;
+        case 'leaper': PX.draw(ctx, (fl ? F.leaperF : F.leaper)[e.onGround ? 0 : 1], sx, e.y, f); break;
+        case 'flyer': { const S = A.flyerSet(th); PX.draw(ctx, (fl ? S.f : S.n)[[0, 1, 2, 1][Math.floor(e.t * 10) % 4]], sx, e.y, 1); break; }
+        case 'pillbox': PX.draw(ctx, (fl ? L.pillF : L.pill)[e.open ? 1 : 0], sx, e.y, 1); break;
         case 'pod':
-          ctx.globalCompositeOperation = 'lighter'; GFX.drawGlow(ctx, 'hsla(205,100%,70%,1)', sx, e.y, 40, 0.3); ctx.globalCompositeOperation = 'source-over';
-          GFX.draw(ctx, spr.pod, sx, e.y, 0, 1, 1);
-          ctx.fillStyle = GFX.art.CAPS[e.letter].c; ctx.font = '900 13px "Segoe UI", system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(e.letter, sx, e.y + 1);
+          ctx.globalCompositeOperation = 'lighter'; GFX.drawGlow(ctx, 'hsla(205,100%,70%,1)', sx, e.y, 38, 0.22); ctx.globalCompositeOperation = 'source-over';
+          PX.draw(ctx, L.pod[Math.floor(e.t * 8) % 2], sx, e.y, 1);
+          if (!fl || true) PX.draw(ctx, L.podL[e.letter], sx, e.y, 1);
           break;
         case 'turret': {
-          const c = E.center(e), a = Math.atan2(g.player.y - 22 - c.y, g.player.x - c.x);
-          ctx.strokeStyle = '#ffd0a0'; ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(sx, c.y); ctx.lineTo(sx + Math.cos(a) * 24, c.y + Math.sin(a) * 24); ctx.stroke();
-          ctx.fillStyle = fl ? '#fff' : GFX.lg(ctx, 0, e.y - 30, 0, e.y, [[0, '#d88a7a'], [1, '#3a1010']]);
-          ctx.beginPath(); ctx.moveTo(sx - 18, e.y); ctx.quadraticCurveTo(sx - 18, e.y - 28, sx, e.y - 28); ctx.quadraticCurveTo(sx + 18, e.y - 28, sx + 18, e.y); ctx.fill();
-          ctx.strokeStyle = '#ffb0a0'; ctx.lineWidth = 1.6; ctx.stroke();
+          const c = E.center(e), a = Math.atan2(g.player.y - 22 - c.y, g.player.x - c.x), bi = ((Math.round(a / (TAU / 16)) % 16) + 16) % 16;
+          PX.draw(ctx, L.barrel[bi], sx, e.y - 16, 1); PX.draw(ctx, fl ? L.domeF : L.dome, sx, e.y, 1);
           break;
         }
         default: break;

@@ -102,7 +102,7 @@
     else if (w === 'S') for (const da of [-0.36, -0.18, 0, 0.18, 0.36]) shot(da, 580, 1, 'S', 0.75);
     else if (w === 'L') shot(0, 950, 2.4, 'L', 0.3, { pierce: true, hit: [], r: 7 });
     else shot(0, 430, 1.4, 'F', 0.8, { r: 9, ph: Math.random() * TAU });
-    P.fireCd = 1 / (WEAPON[w].rate * (P.rapid ? 1.6 : 1));
+    P.fireCd = 1 / (WEAPON[w].rate * (P.rapid ? 1.6 : 1)); P.mz = 0.08;
     A.sfx.gun(w);
   };
 
@@ -112,6 +112,7 @@
     if (P.invuln > 0) P.invuln -= dt;
     if (P.shield > 0) P.shield -= dt;
     if (P.dropT > 0) P.dropT -= dt;
+    if (P.mz > 0) P.mz -= dt;
     if (!P.alive) { P.respawn -= dt; if (P.respawn <= 0 && !this.over) this.respawnPlayer(); return; }
     const run = (inp.r ? 1 : 0) - (inp.l ? 1 : 0);
     P.moving = run !== 0 && P.onGround; if (run) P.face = run;
@@ -241,61 +242,73 @@
 
   /* ---------- rendering (logical 960x540 space) ---------- */
   Game.hasBackdrop = true;
+  const sn = (v) => Math.round(v / 2) * 2;
   Game.drawBackdrop = function (ctx) {
-    const th = this.st.theme, cam = this.cam.x, A2 = GFX.art, h = St.THEMES[th].h;
+    const th = this.st.theme, cam = this.cam.x, A2 = GFX.art, plats = this.st.plats;
+    ctx.imageSmoothingEnabled = false;
     // far sky is full height; the mountains and flora only occupy the lower part of their tiles, so only that strip is blitted
     for (const [idx, k, sy] of [[0, 0.08, 0], [1, 0.3, 170], [2, 0.62, H - 190]]) {
-      const tile = A2.layer(th, idx), off = -(((cam * k) % 1024) + 1024) % 1024, sh = H - sy;
+      const tile = A2.layer(th, idx), off = sn(-(((cam * k) % 1024) + 1024) % 1024), sh = H - sy;
       ctx.drawImage(tile, 0, sy, 1024, sh, off, sy, 1024, sh); ctx.drawImage(tile, 0, sy, 1024, sh, off + 1024, sy, 1024, sh);
     }
-    const tile = A2.ground(th);
-    for (const p of this.st.plats) {
-      const x0 = Math.max(p.x0 - cam, -30), x1 = Math.min(p.x1 - cam, W + 30);
-      if (x1 <= x0) continue;
+    const gd = A2.ground(th), cp = A2.cap(th), lg = A2.ledge(th), CAPW = 16;
+    for (const p of plats) {
+      const px0 = sn(p.x0 - cam), px1 = sn(p.x1 - cam);
+      if (px1 < -140 || px0 > W + 140) continue;
       if (p.solid) {
-        ctx.save(); ctx.beginPath(); ctx.rect(x0, p.y, x1 - x0, H - p.y); ctx.clip();
-        for (let wx = Math.floor((cam + x0) / 128) * 128; wx < cam + x1; wx += 128) ctx.drawImage(tile, wx - cam, p.y);
-        ctx.restore();
-        ctx.fillStyle = 'rgba(0,0,0,0.4)'; if (p.x1 - cam < W + 30) ctx.fillRect(x1 - 5, p.y, 5, H - p.y); if (p.x0 - cam > -30) ctx.fillRect(x0, p.y, 5, H - p.y);
+        const y = p.y - gd.top - 2, covL = plats.some((q) => q !== p && q.solid && q.x0 < p.x0 - 4 && q.x1 > p.x0 + 4), covR = plats.some((q) => q !== p && q.solid && q.x0 < p.x1 - 4 && q.x1 > p.x1 + 4);
+        const a = covL ? px0 : px0 + CAPW, b = covR ? px1 : px1 - CAPW, ca = Math.max(a, -4), cb = Math.min(b, W + 4);
+        if (cb > ca) {
+          ctx.save(); ctx.beginPath(); ctx.rect(ca, y, cb - ca, H - y + 4); ctx.clip();
+          for (let wx = a + Math.floor((ca - a) / 128) * 128; wx < cb; wx += 128) ctx.drawImage(gd.c, wx, y);
+          ctx.restore();
+        }
+        if (!covL && px0 > -CAPW - 4) ctx.drawImage(cp.c, px0, y);
+        if (!covR && px1 < W + CAPW + 4) { ctx.save(); ctx.translate(px1, y); ctx.scale(-1, 1); ctx.drawImage(cp.c, 0, 0); ctx.restore(); }
       } else {
-        ctx.fillStyle = GFX.lg(ctx, 0, p.y, 0, p.y + 12, [[0, U.hsl(h, 45, 52)], [1, U.hsl(h, 45, 18)]]); ctx.fillRect(x0, p.y, x1 - x0, 11);
-        ctx.fillStyle = U.hsl(h, 90, 70, 0.9); ctx.fillRect(x0, p.y, x1 - x0, 2.5);
-        const g2 = ctx.createLinearGradient(0, p.y + 11, 0, p.y + 34); g2.addColorStop(0, U.hsl(h, 90, 60, 0.28)); g2.addColorStop(1, U.hsl(h, 90, 60, 0));
-        ctx.fillStyle = g2; ctx.fillRect(x0, p.y + 11, x1 - x0, 23);
+        const y = p.y, ca = Math.max(px0 + CAPW, -70), cb = Math.min(px1 - CAPW, W + 70);
+        ctx.drawImage(lg.left.c, px0, y);
+        for (let wx = px0 + CAPW; wx < px1 - CAPW; wx += 64) { const w = Math.min(64, px1 - CAPW - wx); if (wx + w > -4 && wx < W + 4) ctx.drawImage(lg.mid.c, 0, 0, w, 30, wx, y, w, 30); }
+        ctx.drawImage(lg.right.c, px1 - CAPW, y);
       }
     }
   };
 
   Game.render = function (ctx) {
-    const spr = GFX.spr, cam = this.cam.x, P = this.player;
+    const A = GFX.art, PXL = G.px, L = A.fl, cam = this.cam.x, P = this.player;
+    ctx.imageSmoothingEnabled = false;
     E.draw(ctx, this);
     if (this.boss) Bo.draw(ctx, this, this.boss);
     FX.drawNorm(ctx);
     for (const c of this.caps) {
       const x = c.x - cam;
-      ctx.globalCompositeOperation = 'lighter'; GFX.drawGlow(ctx, 'hsla(50,100%,65%,1)', x, c.y - 8, 28, 0.4 + 0.12 * Math.sin(c.t * 8)); ctx.globalCompositeOperation = 'source-over';
-      GFX.draw(ctx, spr.cap[c.letter], x, c.y - 10, 0, 1, 1, c.life < 3 ? (Math.floor(c.t * 8) % 2 ? 0.4 : 1) : 1);
+      ctx.globalCompositeOperation = 'lighter'; GFX.drawGlow(ctx, 'hsla(50,100%,65%,1)', x, c.y - 8, 26, 0.3 + 0.1 * Math.sin(c.t * 8)); ctx.globalCompositeOperation = 'source-over';
+      const blink = c.life < 3 && Math.floor(c.t * 8) % 2;
+      if (!blink) PXL.draw(ctx, L.cap[c.letter], x, c.y - 10 + Math.round(Math.sin(c.t * 5) * 1.2), 1);
     }
-    for (const b of this.eb) { const k = b.r / 5.5; GFX.draw(ctx, spr.eb, b.x - cam, b.y, 0, k, k); }
+    for (const b of this.eb) { const k = b.r <= 6 ? 0 : b.r <= 10 ? 1 : 2; PXL.draw(ctx, L.eb[k], b.x - cam, b.y, 1); }
     for (const b of this.pb) {
       const x = b.x - cam;
       if (b.kind === 'L') {
-        ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
         const ex = Math.cos(b.ang) * 38, ey = Math.sin(b.ang) * 38;
-        for (const [w, c] of [[11, 'rgba(90,180,255,0.35)'], [4, 'rgba(255,255,255,0.95)']]) { ctx.strokeStyle = c; ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(x - ex, b.y - ey); ctx.lineTo(x + ex, b.y + ey); ctx.stroke(); }
-        ctx.globalCompositeOperation = 'source-over';
-      } else if (b.kind === 'F') { ctx.globalCompositeOperation = 'lighter'; GFX.drawGlow(ctx, 'hsla(30,100%,60%,1)', x, b.y, 20, 0.5); ctx.globalCompositeOperation = 'source-over'; GFX.draw(ctx, spr.fire, x, b.y, 0, 1, 1); }
-      else GFX.draw(ctx, b.kind === 'S' ? spr.bS : b.kind === 'M' ? spr.bM : spr.bN, x, b.y, b.ang, 1, 1);
+        ctx.fillStyle = '#2a7cff'; PXL.pline(ctx, x - ex, b.y - ey, x + ex, b.y + ey, 3);
+        ctx.fillStyle = '#9fdcff'; PXL.pline(ctx, x - ex, b.y - ey, x + ex, b.y + ey, 2);
+        ctx.fillStyle = '#ffffff'; PXL.pline(ctx, x - ex * 0.8, b.y - ey * 0.8, x + ex * 0.8, b.y + ey * 0.8, 1);
+      } else if (b.kind === 'F') { ctx.globalCompositeOperation = 'lighter'; GFX.drawGlow(ctx, 'hsla(30,100%,60%,1)', x, b.y, 18, 0.4); ctx.globalCompositeOperation = 'source-over'; PXL.draw(ctx, L.fire[Math.floor(b.t * 18) % 4], x, b.y, 1); }
+      else PXL.draw(ctx, b.kind === 'S' ? L.bS : b.kind === 'M' ? L.bM : L.bN, x, b.y, 1);
     }
     if (P.alive) {
       const blink = P.invuln > 0 ? (Math.floor(P.t * 16) % 2 ? 0.35 : 0.9) : 1;
       ctx.globalAlpha = blink;
-      GFX.art.drawAstro(ctx, { x: P.x - cam, y: P.y, face: P.face, aim: P.aim, phase: P.phase, prone: P.prone, spin: P.jumped && !P.onGround, air: !P.onGround, moving: P.moving, t: P.t });
+      A.drawAstro(ctx, { x: P.x - cam, y: P.y, face: P.face, aim: P.aim, phase: P.phase, prone: P.prone, spin: P.jumped && !P.onGround, air: !P.onGround, moving: P.moving, t: P.t });
       ctx.globalAlpha = 1;
+      if (P.mz > 0) {
+        const f = P.face, dx = Math.cos(P.aim) * f, dy = Math.sin(P.aim), mi = P.mz > 0.05 ? 0 : P.mz > 0.025 ? 1 : 2;
+        PXL.draw(ctx, A.muzzle[mi], P.x - cam + f * 4 + dx * 24, P.y - (P.prone ? 10 : 22) + dy * 24, 1);
+      }
       if (P.shield > 0) {
         const low = P.shield < 3 && Math.floor(P.t * 8) % 2;
-        ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = 'rgba(200,140,255,' + (low ? 0.3 : 0.8) + ')'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(P.x - cam, P.y - 20, 30, 0, TAU); ctx.stroke();
-        ctx.fillStyle = 'rgba(190,120,255,0.14)'; ctx.fill(); ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = low ? 0.35 : 0.9; PXL.draw(ctx, L.shield[Math.floor(P.t * 6) % 2], P.x - cam, P.y - 20, 1); ctx.globalAlpha = 1;
       }
     }
     ctx.globalCompositeOperation = 'lighter';
