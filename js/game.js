@@ -12,7 +12,7 @@
     this.lifeIdx = 0; this.nextLifeAt = C.EXTRA_LIFE_AT[0];
     this.banner = null; this.over = false; this.overDone = false; this.timer = 0;
     this.hi = G.scores.best();
-    this.player = { x: 120, y: FL, vx: 0, vy: 0, face: 1, onGround: true, jumped: false, prone: false, aim: 0, phase: 0, weapon: 'N', rapid: false, shield: 0, fireCd: 0, alive: true, respawn: 0, invuln: 2, dropT: 0, t: 0, moving: false };
+    this.player = { x: 120, y: FL, vx: 0, vy: 0, face: 1, onGround: true, jumped: false, prone: false, aim: 0, phase: 0, weapon: 'N', rapid: false, shield: 0, fireCd: 0, alive: true, respawn: 0, invuln: 2, dropT: 0, t: 0, moving: false, jt: 0, noCut: false, jb: 0, cy: 0 };
     FX.reset();
     this.startStage(startStage || 1);
   };
@@ -47,15 +47,66 @@
 
   /* ---------- platform physics shared by the player and ground enemies ---------- */
   Game.phys = function (e, dt) {
+    const rp = e.onGround && e.plat;
+    if (rp && !rp.off) { e.x += rp.dx || 0; e.y = rp.y; }   // ride moving platforms
     const prev = e.y;
     e.vy = Math.min(C.MAXFALL, e.vy + C.GRAV * dt);
     e.x += e.vx * dt; e.y += e.vy * dt;
-    e.onGround = false;
+    e.onGround = false; e.plat = null;
     if (e.vy < 0) return;
     for (const p of this.st.plats) {
+      if (p.off) continue;
       if (e.x < p.x0 - 5 || e.x > p.x1 + 5) continue;
       if (e.dropT > 0 && !p.solid) continue;
-      if (prev <= p.y + 2 && e.y >= p.y) { e.y = p.y; e.vy = 0; e.onGround = true; e.platSolid = p.solid; break; }
+      if (prev <= Math.max(p.y, p.y - (p.dy || 0)) + 2 && e.y >= p.y) { e.y = p.y; e.vy = 0; e.onGround = true; e.platSolid = p.solid; e.plat = p; break; }
+    }
+  };
+
+  /* moving, crumbling and blinking platforms */
+  Game.updatePlats = function (dt) {
+    const t = this.time, P = this.player;
+    for (const p of this.st.plats) {
+      if (!p.t) continue;
+      p.dx = 0; p.dy = 0;
+      if (p.mv) {
+        const o = Math.sin(t * TAU / p.mv.per + p.mv.ph) * p.mv.r, d = o - p.o; p.o = o;
+        if (p.mv.ax === 'x') { p.x0 = p.bx0 + o; p.x1 = p.bx1 + o; p.dx = d; } else { p.y = p.by + o; p.dy = d; }
+      } else if (p.cr) {
+        const c = p.cr;
+        if (c.s === 0) { if (P.alive && P.onGround && P.plat === p) { c.s = 1; c.tm = 0.55; } }
+        else if (c.s === 1) { c.tm -= dt; if (c.tm <= 0) { c.s = 2; c.vy = 0; p.off = true; A.sfx.thud(); } }
+        else { c.vy += 1500 * dt; p.y += c.vy * dt; if (p.y > H + 80) p.t = null; }
+      } else if (p.bl) {
+        const b = p.bl, ph = ((t + b.ph) % b.per) / b.per;
+        p.off = ph > b.on; p.warn = !p.off && ph > b.on - 0.16;
+      }
+    }
+  };
+  /* spikes, flame jets, falling spikes and spring pads */
+  Game.updateTraps = function (dt) {
+    const P = this.player, hb = this.hurtBox(), cam = this.cam.x;
+    for (const T of this.st.traps) {
+      if (T.k === 'spikes') { if (P.alive && hb.x1 > T.x0 + 3 && hb.x0 < T.x1 - 3 && hb.y1 > T.y - 15) this.killPlayer(); }
+      else if (T.k === 'flame') {
+        const c = (this.time + T.ph) % T.per, fs = T.per - T.on;
+        T.s = c >= fs ? 2 : c >= fs - T.warn ? 1 : 0;
+        if (T.s === 2 && P.alive && hb.x1 > T.x - 10 && hb.x0 < T.x + 10 && hb.y1 > T.y - 104 && hb.y0 < T.y) this.killPlayer();
+      } else if (T.k === 'drop') {
+        if (T.st === 0 && P.alive && T.x > cam - 10 && T.x < cam + W + 10 && Math.abs(P.x - T.x) < 175) { T.st = 1; T.t = 0.5; }
+        else if (T.st === 1) { T.t -= dt; if (T.t <= 0) { T.st = 2; T.vy = 0; } }
+        else if (T.st === 2) {
+          T.vy = Math.min(900, T.vy + 1700 * dt); T.dy += T.vy * dt;
+          const tip = T.y0 + 34 + T.dy;
+          if (P.alive && hb.x1 > T.x - 9 && hb.x0 < T.x + 9 && hb.y1 > T.y0 + T.dy && hb.y0 < tip) this.killPlayer();
+          if (tip >= FL && this.st.plats.some((p) => p.solid && T.x > p.x0 && T.x < p.x1)) { T.st = 3; FX.explosion(T.x - cam, FL - 6, 0.7, 40); A.sfx.thud(); }
+          else if (T.y0 + T.dy > H + 40) T.st = 3;
+        }
+      } else if (T.k === 'spring') {
+        T.cd -= dt; if (T.t > 0) T.t -= dt;
+        if (P.alive && T.cd <= 0 && P.vy >= 0 && P.x > T.x0 && P.x < T.x1 && P.y >= T.y - 12 && P.y <= T.y + 6) {
+          P.vy = C.SPRING; P.onGround = false; P.plat = null; P.jumped = true; P.noCut = true; T.cd = 0.45; T.t = 0.35; A.sfx.jump(); FX.sparks(P.x - cam, T.y - 6, 6, 120, 'hsla(50,100%,70%,1)', 0.3, 2);
+        }
+      }
     }
   };
 
@@ -90,7 +141,8 @@
   Game.respawnPlayer = function () {
     const P = this.player;
     let x = this.cam.x + 110;
-    for (let cx = this.cam.x + 90; cx < this.cam.x + 600; cx += 20) if (this.st.plats.some((p) => cx > p.x0 + 10 && cx < p.x1 - 10 && p.y >= FL - 110)) { x = cx; break; }
+    const bad = (cx) => this.st.traps.some((T) => (T.k === 'spikes' && cx > T.x0 - 50 && cx < T.x1 + 50) || (T.k === 'flame' && Math.abs(cx - T.x) < 70) || (T.k === 'drop' && T.st < 3 && Math.abs(cx - T.x) < 50));
+    for (let cx = this.cam.x + 90; cx < this.cam.x + 600; cx += 20) if (!bad(cx) && this.st.plats.some((p) => !p.t && cx > p.x0 + 10 && cx < p.x1 - 10 && p.y >= FL - 110)) { x = cx; break; }
     Object.assign(P, { x, y: -50, vx: 0, vy: 0, alive: true, invuln: 2.8, onGround: false, jumped: false, prone: false });
   };
   const WEAPON = { N: { rate: 4.2 }, M: { rate: 9 }, S: { rate: 3.2 }, L: { rate: 3 }, F: { rate: 5.2 } };
@@ -114,16 +166,22 @@
     if (P.dropT > 0) P.dropT -= dt;
     if (P.mz > 0) P.mz -= dt;
     if (!P.alive) { P.respawn -= dt; if (P.respawn <= 0 && !this.over) this.respawnPlayer(); return; }
+    if (P.jumped && !P.noCut && P.vy < -260 && !inp.held && P.jt > 0.06) P.vy *= C.JUMP_CUT, P.noCut = true;
+    P.jt += dt;
     const run = (inp.r ? 1 : 0) - (inp.l ? 1 : 0);
     P.moving = run !== 0 && P.onGround; if (run) P.face = run;
     P.prone = P.onGround && inp.d && !run;
     P.vx = P.prone ? 0 : run * C.RUN;
-    if (inp.jump) {
-      if (P.onGround && inp.d && !P.platSolid) { P.dropT = 0.3; P.onGround = false; P.vy = 120; }
-      else if (P.onGround && !P.prone) { P.vy = C.JUMP; P.onGround = false; P.jumped = true; A.sfx.jump(); }
+    // jump with a little forgiveness: a press just before landing still counts, and so does one just after running off an edge
+    if (inp.jump) P.jb = 0.11;
+    if (P.jb > 0) P.jb -= dt;
+    P.cy = P.onGround ? 0.09 : Math.max(0, (P.cy || 0) - dt);
+    if (P.jb > 0) {
+      if (P.onGround && inp.d && !P.platSolid) { P.dropT = 0.3; P.onGround = false; P.vy = 120; P.jb = 0; }
+      else if ((P.onGround || (P.cy > 0 && !P.jumped)) && !P.prone) { P.vy = C.JUMP; P.onGround = false; P.plat = null; P.jumped = true; P.noCut = false; P.jt = 0; P.jb = 0; P.cy = 0; A.sfx.jump(); }
     }
     this.phys(P, dt);
-    if (P.onGround) P.jumped = false;
+    if (P.onGround) { P.jumped = false; P.noCut = false; }
     P.x = U.clamp(P.x, this.cam.x + 14, this.cam.x + W - 14);
     P.phase += dt * 14;
     P.aim = P.prone ? 0 : inp.u ? (run ? -Math.PI / 4 : -Math.PI / 2) : inp.d && (!P.onGround || run) ? (run ? Math.PI / 4 : Math.PI / 2) : 0;
@@ -184,9 +242,12 @@
   Game.update = function (dt) {
     this.time += dt;
     if (this.banner) { this.banner.t += dt; if (this.banner.t > this.banner.life) this.banner = null; }
-    if (this.state === 'clear') { this.timer -= dt; FX.update(dt); this.updatePlayer(dt, { l: false, r: false, u: false, d: false, fire: false, jump: false }); if (this.timer <= 0) this.startStage(this.stageNo + 1); return; }
-    const inp = this.demo ? this.autopilot() : { l: I.l, r: I.r, u: I.u, d: I.d, fire: I.fire, jump: I.takeJump() };
+    if (this.state === 'clear') { this.timer -= dt; FX.update(dt); this.updatePlats(dt); this.updatePlayer(dt, { l: false, r: false, u: false, d: false, fire: false, jump: false }); if (this.timer <= 0) this.startStage(this.stageNo + 1); return; }
+    const inp = this.demo ? this.autopilot() : { l: I.l, r: I.r, u: I.u, d: I.d, fire: I.fire, jump: I.takeJump(), held: I.jumpHeld };
+    this.updatePlats(dt);
     this.updatePlayer(dt, inp);
+    this.updateTraps(dt);
+    if (this.demo) { const P0 = this.player; P0.invuln = Math.max(P0.invuln, 0.4); if (P0.y > H + 40 && P0.alive) this.respawnPlayer(); }
     const P = this.player, st = this.st, prev = this.cam.x;
     if (!this.locked) {
       this.cam.x = Math.max(this.cam.x, P.x - 380);
@@ -234,10 +295,20 @@
   Game.autopilot = function () {
     const P = this.player;
     let jump = false, up = false;
-    const ahead = P.x + 70, gap = !this.st.plats.some((p) => p.solid && ahead > p.x0 && ahead < p.x1);
-    if (P.onGround && gap) jump = true;
+    const plats = this.st.plats, ok = (p) => !p.off && !(p.cr && p.cr.s > 0);
+    const edge = P.onGround && !plats.some((p) => ok(p) && P.x + 16 > p.x0 && P.x + 16 < p.x1 && p.y > P.y - 30 && p.y < P.y + 20);
+    let wait = false;
+    if (edge) {
+      // at a ledge: go when something reachable is in range, otherwise wait for a moving / blinking platform to come
+      const tgt = plats.some((p) => ok(p) && p.x1 > P.x + 45 && p.x0 < P.x + 150 && p.y > P.y - 130 && p.y < P.y + 40);
+      this.apWait = (this.apWait || 0) + 1 / 120;
+      if (tgt || this.apWait > 5) { jump = true; this.apWait = 0; } else wait = true;
+    } else this.apWait = 0;
+    if (P.onGround && P.plat && (P.plat.cr || (P.plat.bl && P.plat.warn))) jump = true;   // do not linger on crumbling / fading platforms
+    for (const T of this.st.traps) if (T.k === 'spikes' && T.x1 > P.x - 10 && T.x0 < P.x + 90 && P.onGround) jump = true;
+    for (const T of this.st.traps) if (T.k === 'flame' && T.s >= 1 && T.x > P.x && T.x < P.x + 110) wait = true;
     for (const e of this.en) { if (e.dead) continue; const dx = e.x - P.x, c = E.center(e); if (e.type !== 'pod' && dx > 0 && dx < 110 && Math.abs(c.y - (P.y - 20)) < 40 && P.onGround) jump = true; if (c.y < P.y - 110 && Math.abs(dx) < 260) up = true; }
-    return { l: false, r: !this.locked || this.player.x < this.st.arenaX + 600, u: up, d: false, fire: true, jump };
+    return { l: false, r: !wait && (!this.locked || this.player.x < this.st.arenaX + 600), u: up, d: false, fire: true, jump, held: true };
   };
 
   /* ---------- rendering (logical 960x540 space) ---------- */
@@ -251,7 +322,7 @@
       const tile = A2.layer(th, idx), off = sn(-(((cam * k) % 1024) + 1024) % 1024), sh = H - sy;
       ctx.drawImage(tile, 0, sy, 1024, sh, off, sy, 1024, sh); ctx.drawImage(tile, 0, sy, 1024, sh, off + 1024, sy, 1024, sh);
     }
-    const gd = A2.ground(th), cp = A2.cap(th), lg = A2.ledge(th), CAPW = 16;
+    const gd = A2.ground(th), cp = A2.cap(th), lg = A2.ledge(th), CAPW = 16, TA = A2.trapArt(th), PX = G.px;
     for (const p of plats) {
       const px0 = sn(p.x0 - cam), px1 = sn(p.x1 - cam);
       if (px1 < -140 || px0 > W + 140) continue;
@@ -266,17 +337,42 @@
         if (!covL && px0 > -CAPW - 4) ctx.drawImage(cp.c, px0, y);
         if (!covR && px1 < W + CAPW + 4) { ctx.save(); ctx.translate(px1, y); ctx.scale(-1, 1); ctx.drawImage(cp.c, 0, 0); ctx.restore(); }
       } else {
-        const y = p.y, ca = Math.max(px0 + CAPW, -70), cb = Math.min(px1 - CAPW, W + 70);
-        ctx.drawImage(lg.left.c, px0, y);
-        for (let wx = px0 + CAPW; wx < px1 - CAPW; wx += 64) { const w = Math.min(64, px1 - CAPW - wx); if (wx + w > -4 && wx < W + 4) ctx.drawImage(lg.mid.c, 0, 0, w, 30, wx, y, w, 30); }
-        ctx.drawImage(lg.right.c, px1 - CAPW, y);
+        let S = lg, x0 = px0, x1 = px1;
+        if (p.t === 'move') S = TA.mover;
+        else if (p.t === 'crumble') { S = TA.crumble; if (p.cr.s === 1) { const j = sn(Math.sin(this.time * 70) * 2.4); x0 += j; x1 += j; } }
+        else if (p.t === 'blink') S = p.off ? TA.blink.ghost : p.warn ? (Math.floor(this.time * 14) % 2 ? TA.blink.hot : TA.blink.ghost) : TA.blink.on;
+        else if (p.t === null) continue;
+        stripDraw(ctx, S, x0, x1, p.y, CAPW);
       }
     }
+    for (const T of this.st.traps) {
+      if (T.k === 'spikes') { const sp = TA.spike, a = sn(T.x0 - cam); if (a > W + 20 || T.x1 - cam < -20) continue; for (let x = a; x < sn(T.x1 - cam) - 6; x += 12) ctx.drawImage(sp.c, x - sp.ox, T.y - sp.oy); }
+      else if (T.k === 'flame') { if (Math.abs(T.x - cam - W / 2) < W / 2 + 40) PX.draw(ctx, TA.vent, T.x - cam, T.y + 2, 1); }
+      else if (T.k === 'spring') { if (T.x1 - cam > -30 && T.x0 - cam < W + 30) PX.draw(ctx, TA.spring[T.t > 0 ? 1 : 0], (T.x0 + T.x1) / 2 - cam, T.y + 2, 1); }
+    }
   };
+  function stripDraw(ctx, S, px0, px1, y, CAPW) {
+    ctx.drawImage(S.left.c, px0, y);
+    for (let wx = px0 + CAPW; wx < px1 - CAPW; wx += 64) { const w = Math.min(64, px1 - CAPW - wx); if (wx + w > -4 && wx < W + 4) ctx.drawImage(S.mid.c, 0, 0, w, 30, wx, y, w, 30); }
+    ctx.drawImage(S.right.c, px1 - CAPW, y);
+  }
 
   Game.render = function (ctx) {
     const A = GFX.art, PXL = G.px, L = A.fl, cam = this.cam.x, P = this.player;
     ctx.imageSmoothingEnabled = false;
+    const TA = A.trapArt(this.st.theme);
+    for (const T of this.st.traps) {
+      if (T.k === 'flame') {
+        const x = T.x - cam;
+        if (x < -40 || x > W + 40) continue;
+        if (T.s === 1) { ctx.fillStyle = this.st.theme === 4 ? '#6ae8ff' : '#ffa22a'; for (let i = 0; i < 3; i++) PXL.dot(ctx, x - 8 + ((this.time * 40 + i * 7) % 16), T.y - 10 - ((this.time * 60 + i * 13) % 14), 1); }
+        else if (T.s === 2) { ctx.globalCompositeOperation = 'lighter'; GFX.drawGlow(ctx, this.st.theme === 4 ? 'hsla(190,100%,60%,1)' : 'hsla(25,100%,55%,1)', x, T.y - 52, 46, 0.32); ctx.globalCompositeOperation = 'source-over'; PXL.draw(ctx, TA.flame[Math.floor(this.time * 14) % 4], x, T.y - 8, 1); }
+      } else if (T.k === 'drop' && T.st < 3) {
+        const x = T.x - cam;
+        if (x < -30 || x > W + 30) continue;
+        PXL.draw(ctx, TA.drop, x + (T.st === 1 ? Math.round(Math.sin(this.time * 80) * 2) : 0), T.y0 + T.dy, 1);
+      }
+    }
     E.draw(ctx, this);
     if (this.boss) Bo.draw(ctx, this, this.boss);
     FX.drawNorm(ctx);

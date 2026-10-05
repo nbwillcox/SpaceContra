@@ -6,7 +6,7 @@
     H: 540,
     REPO: 'https://github.com/nbwillcox/SpaceContra',
     FLOOR: 440,
-    GRAV: 1900, RUN: 215, JUMP: -650, MAXFALL: 900,
+    GRAV: 1900, RUN: 215, JUMP: -730, MAXFALL: 900, SPRING: -1010, JUMP_CUT: 0.42,
     START_LIVES: 3,
     EXTRA_LIFE_AT: [20000, 50000],
     EXTRA_LIFE_EVERY: 50000,

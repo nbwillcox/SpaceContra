@@ -1,10 +1,10 @@
 # SpaceContra
 
-A free, retro-flavored run-and-gun platformer with modern neon graphics and a head nod to the classic 8-bit arcade shooters. A little astronaut runs, jumps and shoots across strange alien worlds overrun by invaders, grabs weapon capsules, and takes down a giant boss at the end of every stage.
+A free, retro-flavored run-and-gun platformer in chunky pixel art, with a head nod to the classic 8-bit arcade shooters. A little astronaut runs, jumps and shoots across strange alien worlds overrun by invaders, grabs weapon capsules, and takes down a giant boss at the end of every stage.
 
 **Play it in your browser:** https://nbwillcox.github.io/SpaceContra/
 
-Everything is generated in code: sprites are vector-drawn on the fly, and all sound effects and music are synthesized with the Web Audio API. There are no image or audio files and no build step. A sibling of [SpaceGalaShooter](https://github.com/nbwillcox/SpaceGalaShooter), [SpaceCentiShooter](https://github.com/nbwillcox/SpaceCentiShooter), [SpaceVaderShooter](https://github.com/nbwillcox/SpaceVaderShooter), [SpaceStroids](https://github.com/nbwillcox/SpaceStroids), [SpaceCommand](https://github.com/nbwillcox/SpaceCommand), [lightCycles](https://github.com/nbwillcox/lightCycles), [SpaceRoboShooter](https://github.com/nbwillcox/SpaceRoboShooter), [SpaceBricks](https://github.com/nbwillcox/SpaceBricks), [SpaceSidePews](https://github.com/nbwillcox/SpaceSidePews), [SpaceFrogger](https://github.com/nbwillcox/SpaceFrogger) and [SpaceDug](https://github.com/nbwillcox/SpaceDug), with the same look and feel.
+Everything is generated in code: the pixel-art sprites, backdrops and terrain are built at startup by a tiny software rasteriser, and all sound effects and music are synthesized with the Web Audio API. There are no image or audio files and no build step. A sibling of [SpaceGalaShooter](https://github.com/nbwillcox/SpaceGalaShooter), [SpaceCentiShooter](https://github.com/nbwillcox/SpaceCentiShooter), [SpaceVaderShooter](https://github.com/nbwillcox/SpaceVaderShooter), [SpaceStroids](https://github.com/nbwillcox/SpaceStroids), [SpaceCommand](https://github.com/nbwillcox/SpaceCommand), [lightCycles](https://github.com/nbwillcox/lightCycles), [SpaceRoboShooter](https://github.com/nbwillcox/SpaceRoboShooter), [SpaceBricks](https://github.com/nbwillcox/SpaceBricks), [SpaceSidePews](https://github.com/nbwillcox/SpaceSidePews), [SpaceFrogger](https://github.com/nbwillcox/SpaceFrogger) and [SpaceDug](https://github.com/nbwillcox/SpaceDug), with the same look and feel.
 
 ## Controls
 
@@ -23,7 +23,10 @@ Desktop browsers with a keyboard only for now. There is a secret code on the key
 ## Gameplay
 
 - You have 3 lives and any hit is fatal. A new life drops in from the top with a few seconds of invulnerability, but you lose your weapon power-ups.
-- Run to the right through ridges, ice caverns, magma fields, hive worlds and steel fortresses. Jump the pits, hop up to the floating ledges and keep shooting.
+- Run to the right through ridges, ice caverns, magma fields, hive worlds and steel fortresses. Jump the pits, hop up to the floating ledges and keep shooting. Hold jump for a full leap or tap it for a short hop.
+- **Every stage is different:** each world mixes its own stretches of floor and ways to cross the gaps between them.
+  - **Platforms:** stepping stones, hovering platforms that slide or lift, crumbling slabs that fall a moment after you land, energy platforms that blink in and out, and spring pads that fling you onto high ledges.
+  - **Traps:** spike strips, flame and plasma jets (watch for the warning flicker), and spikes or boulders that drop when you walk under them.
 - **Aliens:** runners rush you (some shoot), snipers pick you off from ledges, turrets and pillboxes guard the path, swooping flyers dive in, and leapers jump at you.
 - **Weapon capsules** come from flying pods (shoot them open) and pillboxes:
   - **S** Spread shot
