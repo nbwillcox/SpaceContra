@@ -18,7 +18,7 @@ Everything is generated in code: the pixel-art sprites, backdrops and terrain ar
 | Drop through a ledge | `↓` + jump |
 | Pause | `P` or `Esc` |
 
-Desktop browsers with a keyboard only for now. There is a secret code on the keyboard too: up, up, down, down, B, A, right, shift, enter.
+Desktop browsers with a keyboard only for now. The playfield stretches to fill the whole window, so ultrawide screens simply show more of the world. There is a secret code on the keyboard too: up, up, down, down, B, A, right, shift, enter.
 
 ## Gameplay
 

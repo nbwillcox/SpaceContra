@@ -2,7 +2,7 @@
 (function (G) {
   'use strict';
   const U = G.U, C = G.C, S = G.settings, FX = G.fx, GFX = G.gfx, A = G.audio, I = G.input, Game = G.game, UI = G.ui, HUD = G.hud;
-  const W = C.W, H = C.H, STEP = 1 / 120;
+  const H = C.H, STEP = 1 / 120;
   const mk = () => document.createElement('canvas');
   const canvas = document.getElementById('game'), ctx = canvas.getContext('2d');
   const scene = mk(), sctx = scene.getContext('2d');
@@ -28,7 +28,7 @@
     view.rs = view.dpr * Math.max(0.6, qual);
     setSize(canvas, Math.round(view.w * view.rs), Math.round(view.h * view.rs));
     view.ps = Math.min(view.s * view.rs, 1.5);
-    setSize(scene, Math.round(W * view.ps), Math.round(H * view.ps));
+    setSize(scene, Math.round(C.W * view.ps), Math.round(H * view.ps));
     setSize(b1, scene.width >> 1, scene.height >> 1);
     setSize(b2, scene.width >> 2, scene.height >> 2);
     setSize(b3, scene.width >> 3, scene.height >> 3);
@@ -48,9 +48,11 @@
   const bgc = mk(), bgx = bgc.getContext('2d'), bgt = { hue: -1, pa: null, pb: null };
   function resize() {
     const dpr = Math.min(window.devicePixelRatio || 1, 1.5), w = Math.max(64, window.innerWidth), h = Math.max(64, window.innerHeight);
-    const s = Math.min(w / W, h / H);
+    // the playfield stretches to the window: wider windows simply show more of the world (never narrower than the classic 960)
+    C.W = Math.max(960, Math.min(2000, Math.round(H * (w / h) / 2) * 2));
+    const s = Math.min(w / C.W, h / H);
     view.w = w; view.h = h; view.dpr = dpr; view.s = s;
-    view.ox = (w - W * s) / 2; view.oy = (h - H * s) / 2;
+    view.ox = (w - C.W * s) / 2; view.oy = (h - H * s) / 2;
     sizeScene();
     setSize(bgc, Math.ceil(w * BGK), Math.ceil(h * BGK)); bgt.hue = -1;
     initStars();
@@ -63,7 +65,15 @@
     return c;
   }
   function drawBackground(dt) {
-    if (Game.hasBackdrop && view.ox < 1 && view.oy < 1) return;
+    if (Game.hasBackdrop) {
+      if (view.ox < 1 && view.oy < 1) return;
+      // outside the playfield (only very wide or tall windows): continue the sky above and the ground below
+      const e = Game.edgeColors();
+      ctx.setTransform(view.rs, 0, 0, view.rs, 0, 0);
+      ctx.fillStyle = e.top; ctx.fillRect(0, 0, view.w, view.h);
+      ctx.fillStyle = e.bottom; ctx.fillRect(0, view.oy + 440 * view.s, view.w, view.h);
+      return;
+    }
     const w = view.w, h = view.h, slow = S.reduced ? 0.3 : 1;
     const hue = WORLD_HUE[Game.world || 0];
     if (hue !== bgt.hue) { bgt.hue = hue; bgt.pa = bgx.createPattern(bgTile(GFX.nebula(hue), BGK), 'repeat'); bgt.pb = bgx.createPattern(bgTile(GFX.nebula(hue + 40), BGK * 1.7), 'repeat'); }
@@ -102,9 +112,9 @@
     HUD.sides(ctx, view, Game);
     ctx.save();
     ctx.translate(view.ox, view.oy); ctx.scale(view.s, view.s);
-    if (Game.hasBackdrop) Game.drawBackdrop(ctx); else { ctx.fillStyle = 'rgba(2,4,16,0.42)'; ctx.fillRect(0, 0, W, H); }
+    if (Game.hasBackdrop) Game.drawBackdrop(ctx); else { ctx.fillStyle = 'rgba(2,4,16,0.42)'; ctx.fillRect(0, 0, C.W, H); }
     ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'low';
-    ctx.drawImage(scene, 0, 0, W, H);
+    ctx.drawImage(scene, 0, 0, C.W, H);
     if (S.bloom && M.bloomOn !== false) {
       bctx[0].clearRect(0, 0, b1.width, b1.height); bctx[0].drawImage(scene, 0, 0, b1.width, b1.height);
       bctx[1].clearRect(0, 0, b2.width, b2.height); bctx[1].drawImage(b1, 0, 0, b2.width, b2.height);
@@ -113,13 +123,13 @@
       bctx[1].globalCompositeOperation = 'lighter'; bctx[1].globalAlpha = 0.85; bctx[1].drawImage(b3, 0, 0, b2.width, b2.height);
       bctx[1].globalAlpha = 1; bctx[1].globalCompositeOperation = 'source-over';
       ctx.globalCompositeOperation = 'lighter';
-      ctx.globalAlpha = 0.4; ctx.drawImage(b2, 0, 0, W, H);
+      ctx.globalAlpha = 0.4; ctx.drawImage(b2, 0, 0, C.W, H);
       ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
     }
     HUD.draw(ctx, Game);
-    if (FX.flash > 0) { ctx.fillStyle = 'rgba(' + FX.flashColor + ',' + Math.min(0.75, FX.flash * 0.7) + ')'; ctx.fillRect(0, 0, W, H); }
+    if (FX.flash > 0) { ctx.fillStyle = 'rgba(' + FX.flashColor + ',' + Math.min(0.75, FX.flash * 0.7) + ')'; ctx.fillRect(0, 0, C.W, H); }
     ctx.restore();
-    const fw = W * view.s, fh = H * view.s;
+    const fw = C.W * view.s, fh = H * view.s;
     ctx.strokeStyle = 'rgba(55,230,255,0.09)'; ctx.lineWidth = 8; ctx.strokeRect(view.ox, view.oy, fw, fh);
     ctx.strokeStyle = 'rgba(55,230,255,0.16)'; ctx.lineWidth = 4; ctx.strokeRect(view.ox, view.oy, fw, fh);
     ctx.strokeStyle = 'rgba(55,230,255,0.45)'; ctx.lineWidth = 1.5; ctx.strokeRect(view.ox, view.oy, fw, fh);

@@ -4,7 +4,7 @@
   const U = G.U, C = G.C, FX = G.fx, GFX = G.gfx, A = G.audio, TAU = U.TAU;
   const E = {};
   G.enemies = E;
-  const W = C.W, H = C.H;
+  const H = C.H;
 
   const T = {
     grunt: { w: 22, h: 40, hp: 1, pts: 100, hue: 110 }, sniper: { w: 22, h: 44, hp: 1, pts: 200, hue: 14 }, turret: { w: 34, h: 30, hp: 4, pts: 300, hue: 20 },
@@ -32,7 +32,7 @@
 
   /* spawn a scripted group when its trigger point scrolls into range */
   E.runEvent = function (g, ev) {
-    const sx = g.cam.x + W + 50;
+    const sx = g.cam.x + C.W + 50;
     if (ev.type === 'runners') {
       for (let i = 0; i < ev.n; i++) E.spawn(g, 'grunt', sx + i * 64, g.groundY(sx + i * 64, 40), { shooter: Math.random() < 0.3 });
     } else if (ev.type === 'sniper' || ev.type === 'turret') E.spawn(g, ev.type, ev.x, ev.y, { cd: 1.1 });
@@ -43,7 +43,7 @@
   };
 
   E.update = function (g, dt) {
-    const p = g.player, d = dBoost(g), camR = g.cam.x + W;
+    const p = g.player, d = dBoost(g), camR = g.cam.x + C.W;
     for (const e of g.en) {
       if (e.dead) continue;
       e.t += dt; if (e.flash > 0) e.flash -= dt; e.cd -= dt;
@@ -107,7 +107,7 @@
     const A = GFX.art, PX = G.px, th = g.st.theme, F = A.foes(th), L = A.fl, cam = g.cam.x;
     for (const e of g.en) {
       const sx = e.x - cam;
-      if (sx < -80 || sx > W + 80) continue;
+      if (sx < -80 || sx > C.W + 80) continue;
       const f = e.face > 0 ? -1 : 1, fl = e.flash > 0;
       switch (e.type) {
         case 'grunt': PX.draw(ctx, (fl ? F.gruntF : F.grunt)[Math.floor(Math.abs(e.x) / 9) % 4], sx, e.y, f); break;

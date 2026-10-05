@@ -2,7 +2,7 @@
 (function (G) {
   'use strict';
   const U = G.U, C = G.C, GFX = G.gfx, PX = G.px, K = PX.K;
-  const W = C.W, H = C.H;
+  const H = C.H;
   const HUD = {};
   const OL = '#0b0d1a', ORG = '#ff8a3d', WHT = '#ffffff';
   const T = (ctx, s, x, y, c, sz, a, extra) => PX.text(ctx, s, x, y, Object.assign({ s: sz || K, c, o: OL, a: a || 'l' }, extra || {}));
@@ -29,15 +29,15 @@
     const P = g.player, st = g.st, inf = G.cheat.inf, A = GFX.art, sm = ctx.imageSmoothingEnabled;
     ctx.imageSmoothingEnabled = false;
     if (!lifeIcon) lifeIcon = mkLife();
-    ctx.fillStyle = 'rgba(8,10,28,0.5)'; ctx.fillRect(0, 0, W, 60);
-    ctx.fillStyle = OL; ctx.fillRect(0, 60, W, 2); ctx.fillStyle = '#ff6a3d'; ctx.fillRect(0, 62, W, 2); ctx.fillStyle = '#a03a1a'; ctx.fillRect(0, 64, W, 2);
+    ctx.fillStyle = 'rgba(8,10,28,0.5)'; ctx.fillRect(0, 0, C.W, 60);
+    ctx.fillStyle = OL; ctx.fillRect(0, 60, C.W, 2); ctx.fillStyle = '#ff6a3d'; ctx.fillRect(0, 62, C.W, 2); ctx.fillStyle = '#a03a1a'; ctx.fillRect(0, 64, C.W, 2);
     T(ctx, 'SCORE', 16, 8, ORG); T(ctx, U.fmt(g.score), 16, 28, WHT, 3, 'l', { sh: '#3a3f66' });
-    if (!g.boss) { T(ctx, 'HI-SCORE', W / 2, 8, ORG, K, 'c'); T(ctx, U.fmt(Math.max(g.hi, g.score)), W / 2, 26, '#9fe8ff', K, 'c'); }
-    T(ctx, 'STAGE ' + g.stageNo, W - 16, 8, ORG, K, 'r'); T(ctx, G.stage.THEMES[st.theme].name, W - 16, 28, WHT, K, 'r');
+    if (!g.boss) { T(ctx, 'HI-SCORE', C.W / 2, 8, ORG, K, 'c'); T(ctx, U.fmt(Math.max(g.hi, g.score)), C.W / 2, 26, '#9fe8ff', K, 'c'); }
+    T(ctx, 'STAGE ' + g.stageNo, C.W - 16, 8, ORG, K, 'r'); T(ctx, G.stage.THEMES[st.theme].name, C.W - 16, 28, WHT, K, 'r');
     for (let i = 0; i < Math.min(inf ? 1 : g.lives, 6); i++) PX.draw(ctx, lifeIcon, 228 + i * 26, 33, 1);
     if (inf) T(ctx, '∞', 258, 27, '#ffd24a', 3); else if (g.lives > 6) T(ctx, 'x' + g.lives, 228 + 6 * 26, 27, WHT);
     if (!g.boss) {
-      const k = U.clamp(g.cam.x / st.arenaX, 0, 1), bx = W / 2 - 96, by = 46;
+      const k = U.clamp(g.cam.x / (st.arenaX - Math.max(0, C.W - 960)), 0, 1), bx = C.W / 2 - 96, by = 46;
       ctx.fillStyle = OL; ctx.fillRect(bx - K, by - K, 192 + 2 * K, 8 + 2 * K); ctx.fillStyle = '#2a2f4a'; ctx.fillRect(bx, by, 192, 6);
       ctx.fillStyle = '#ff6a3d'; ctx.fillRect(bx, by, Math.floor(192 * k / 6) * 6, 6); ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fillRect(bx, by, Math.floor(192 * k / 6) * 6, 2);
       ctx.fillStyle = WHT; ctx.fillRect(bx + Math.floor(192 * k / 2) * 2 - 2, by - 4, 4, 14);
@@ -50,8 +50,8 @@
     if (P.shield > 0) { ry += 26; PX.draw(ctx, A.fl.cap.B, 34, ry, 1); T(ctx, 'BARRIER', 66, ry - 6, '#c88aff'); bar(ctx, 66, ry + 10, 84, 4, P.shield / 12, '#c88aff'); }
     if (g.boss) {
       const b = g.boss, k = U.clamp(b.core.hp / b.core.maxhp, 0, 1);
-      T(ctx, b.name, W / 2, 8, '#ffb0a0', K, 'c');
-      bar(ctx, W / 2 - 150, 30, 300, 10, k, '#ff4a3a', '#3a1620');
+      T(ctx, b.name, C.W / 2, 8, '#ffb0a0', K, 'c');
+      bar(ctx, C.W / 2 - 150, 30, 300, 10, k, '#ff4a3a', '#3a1620');
     }
     HUD.banner(ctx, g);
     ctx.imageSmoothingEnabled = sm;
@@ -64,13 +64,13 @@
     ctx.save(); ctx.globalAlpha = a;
     if (b.warn) {
       const flick = Math.floor(b.t * 4) % 2;
-      for (let y = -48; y < 52; y += 4) { const f = 1 - Math.abs(y) / 52; ctx.fillStyle = 'rgba(255,40,40,' + (f * (flick ? 0.55 : 0.32)).toFixed(2) + ')'; ctx.fillRect(0, y0 + y, W, 4); }
-      T(ctx, 'WARNING', W / 2, y0 - 28 - drop, flick ? '#ff6a6a' : '#ffffff', 8, 'c', { sh: '#7a0a0a' });
-      T(ctx, b.sub, W / 2, y0 + 44, '#ffd0d0', 3, 'c');
-    } else if (b.small) T(ctx, b.text, W / 2, y0 - 10 - drop, '#7dffb8', 4, 'c', { sh: '#1a5a3a' });
+      for (let y = -48; y < 52; y += 4) { const f = 1 - Math.abs(y) / 52; ctx.fillStyle = 'rgba(255,40,40,' + (f * (flick ? 0.55 : 0.32)).toFixed(2) + ')'; ctx.fillRect(0, y0 + y, C.W, 4); }
+      T(ctx, 'WARNING', C.W / 2, y0 - 28 - drop, flick ? '#ff6a6a' : '#ffffff', 8, 'c', { sh: '#7a0a0a' });
+      T(ctx, b.sub, C.W / 2, y0 + 44, '#ffd0d0', 3, 'c');
+    } else if (b.small) T(ctx, b.text, C.W / 2, y0 - 10 - drop, '#7dffb8', 4, 'c', { sh: '#1a5a3a' });
     else {
-      T(ctx, b.text, W / 2, y0 - 24 - drop, WHT, b.text.length > 14 ? 5 : 7, 'c', { g: ['#ffffff', '#ffb36a'], sh: '#7a2a0a' });
-      if (b.sub) T(ctx, b.sub, W / 2, y0 + 30, '#ffd24a', 3, 'c', { sh: '#6a4a0a' });
+      T(ctx, b.text, C.W / 2, y0 - 24 - drop, WHT, b.text.length > 14 ? 5 : 7, 'c', { g: ['#ffffff', '#ffb36a'], sh: '#7a2a0a' });
+      if (b.sub) T(ctx, b.sub, C.W / 2, y0 + 30, '#ffd24a', 3, 'c', { sh: '#6a4a0a' });
     }
     ctx.restore();
   };
@@ -79,7 +79,7 @@
   const paintSides = function (ctx, v, g) {
     const sw = v.ox;
     if (sw < 150) return;
-    const sc = Math.min(1.15, sw / 240), cx1 = sw / 2, cx2 = v.ox + W * v.s + sw / 2, top = v.oy + 70 * sc, s2 = sc < 0.85 ? 1 : 2, s3 = sc < 0.85 ? 2 : 3, col = '#a8d4ff';
+    const sc = Math.min(1.15, sw / 240), cx1 = sw / 2, cx2 = v.ox + C.W * v.s + sw / 2, top = v.oy + 70 * sc, s2 = sc < 0.85 ? 1 : 2, s3 = sc < 0.85 ? 2 : 3, col = '#a8d4ff';
     ctx.save(); ctx.imageSmoothingEnabled = false;
     const t = (str, x, y, c, s, a) => PX.text(ctx, str, Math.round(x), Math.round(y), { s, c, o: OL, a: a || 'c' });
     t('SPACE', cx1, top - 40 * sc, '#ffffff', s3); t('CONTRA', cx1, top - 16 * sc, '#ff8a3d', s3);

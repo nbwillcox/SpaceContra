@@ -2,7 +2,7 @@
 (function (G) {
   'use strict';
   const U = G.U, C = G.C, S = G.settings, FX = G.fx, GFX = G.gfx, A = G.audio, I = G.input, St = G.stage, E = G.enemies, Bo = G.boss, TAU = U.TAU;
-  const W = C.W, H = C.H, FL = C.FLOOR;
+  const H = C.H, FL = C.FLOOR;
   const Game = { state: 'title', demo: true, time: 0 };
   G.game = Game;
 
@@ -92,7 +92,7 @@
         T.s = c >= fs ? 2 : c >= fs - T.warn ? 1 : 0;
         if (T.s === 2 && P.alive && hb.x1 > T.x - 10 && hb.x0 < T.x + 10 && hb.y1 > T.y - 104 && hb.y0 < T.y) this.killPlayer();
       } else if (T.k === 'drop') {
-        if (T.st === 0 && P.alive && T.x > cam - 10 && T.x < cam + W + 10 && Math.abs(P.x - T.x) < 175) { T.st = 1; T.t = 0.5; }
+        if (T.st === 0 && P.alive && T.x > cam - 10 && T.x < cam + C.W + 10 && Math.abs(P.x - T.x) < 175) { T.st = 1; T.t = 0.5; }
         else if (T.st === 1) { T.t -= dt; if (T.t <= 0) { T.st = 2; T.vy = 0; } }
         else if (T.st === 2) {
           T.vy = Math.min(900, T.vy + 1700 * dt); T.dy += T.vy * dt;
@@ -182,7 +182,7 @@
     }
     this.phys(P, dt);
     if (P.onGround) { P.jumped = false; P.noCut = false; }
-    P.x = U.clamp(P.x, this.cam.x + 14, this.cam.x + W - 14);
+    P.x = U.clamp(P.x, this.cam.x + 14, this.cam.x + C.W - 14);
     P.phase += dt * 14;
     P.aim = P.prone ? 0 : inp.u ? (run ? -Math.PI / 4 : -Math.PI / 2) : inp.d && (!P.onGround || run) ? (run ? Math.PI / 4 : Math.PI / 2) : 0;
     P.fireCd -= dt;
@@ -202,7 +202,7 @@
       b.t += dt;
       if (b.kind === 'F') { const wob = Math.cos(b.t * 18 + b.ph) * 150 * dt; b.x += -Math.sin(b.ang) * wob; b.y += Math.cos(b.ang) * wob; }
       b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
-      if (b.life <= 0 || b.x < cam - 80 || b.x > cam + W + 80 || b.y < -80 || b.y > H + 80) { b.dead = true; continue; }
+      if (b.life <= 0 || b.x < cam - 80 || b.x > cam + C.W + 80 || b.y < -80 || b.y > H + 80) { b.dead = true; continue; }
       for (const e of this.en) {
         if (e.dead) continue;
         const bx = E.box(e);
@@ -217,7 +217,7 @@
     const hb = this.hurtBox(), P = this.player;
     for (const b of this.eb) {
       b.vy += b.ay * dt; b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
-      if (b.life <= 0 || b.x < cam - 100 || b.x > cam + W + 100 || b.y < -100 || b.y > H + 40) { b.dead = true; continue; }
+      if (b.life <= 0 || b.x < cam - 100 || b.x > cam + C.W + 100 || b.y < -100 || b.y > H + 40) { b.dead = true; continue; }
       if (P.alive && b.x + b.r > hb.x0 && b.x - b.r < hb.x1 && b.y + b.r > hb.y0 && b.y - b.r < hb.y1) { b.dead = true; this.killPlayer(); }
     }
     this.eb = this.eb.filter((b) => !b.dead);
@@ -249,12 +249,13 @@
     this.updateTraps(dt);
     if (this.demo) { const P0 = this.player; P0.invuln = Math.max(P0.invuln, 0.4); if (P0.y > H + 40 && P0.alive) this.respawnPlayer(); }
     const P = this.player, st = this.st, prev = this.cam.x;
+    const lockX = st.arenaX - Math.max(0, C.W - 960);   // on wide screens the arena keeps its classic right edge and the extra width shows ground behind you
     if (!this.locked) {
-      this.cam.x = Math.max(this.cam.x, P.x - 380);
-      if (this.cam.x >= st.arenaX) { this.cam.x = st.arenaX; this.locked = true; }
-    }
+      this.cam.x = Math.max(this.cam.x, P.x - Math.round(C.W * 0.396));
+      if (this.cam.x >= lockX) { this.cam.x = lockX; this.locked = true; }
+    } else this.cam.x = lockX;
     if (this.cam.x !== prev) FX.shift(-(this.cam.x - prev), 0);
-    while (this.evIdx < st.events.length && st.events[this.evIdx].x <= this.cam.x + W + 60) E.runEvent(this, st.events[this.evIdx++]);
+    while (this.evIdx < st.events.length && st.events[this.evIdx].x <= this.cam.x + C.W + 60) E.runEvent(this, st.events[this.evIdx++]);
     E.update(this, dt);
     if (this.boss) Bo.update(this, this.boss, dt);
     this.updateBullets(dt);
@@ -313,6 +314,14 @@
 
   /* ---------- rendering (logical 960x540 space) ---------- */
   Game.hasBackdrop = true;
+  const edgeCache = {};
+  Game.edgeColors = function () {
+    const th = this.st.theme;
+    if (edgeCache[th]) return edgeCache[th];
+    const px = (c, x, y) => { const d = c.getContext('2d').getImageData(x, y, 1, 1).data; return 'rgb(' + d[0] + ',' + d[1] + ',' + d[2] + ')'; };
+    const A2 = GFX.art, sky = A2.layer(th, 0), gr = A2.ground(th).c;
+    return (edgeCache[th] = { top: px(sky, 2, 2), bottom: px(gr, 2, gr.height - 3) });
+  };
   const sn = (v) => Math.round(v / 2) * 2;
   Game.drawBackdrop = function (ctx) {
     const th = this.st.theme, cam = this.cam.x, A2 = GFX.art, plats = this.st.plats;
@@ -320,22 +329,22 @@
     // far sky is full height; the mountains and flora only occupy the lower part of their tiles, so only that strip is blitted
     for (const [idx, k, sy] of [[0, 0.08, 0], [1, 0.3, 170], [2, 0.62, H - 190]]) {
       const tile = A2.layer(th, idx), off = sn(-(((cam * k) % 1024) + 1024) % 1024), sh = H - sy;
-      ctx.drawImage(tile, 0, sy, 1024, sh, off, sy, 1024, sh); ctx.drawImage(tile, 0, sy, 1024, sh, off + 1024, sy, 1024, sh);
+      for (let o = off; o < C.W; o += 1024) ctx.drawImage(tile, 0, sy, 1024, sh, o, sy, 1024, sh);
     }
     const gd = A2.ground(th), cp = A2.cap(th), lg = A2.ledge(th), CAPW = 16, TA = A2.trapArt(th), PX = G.px;
     for (const p of plats) {
       const px0 = sn(p.x0 - cam), px1 = sn(p.x1 - cam);
-      if (px1 < -140 || px0 > W + 140) continue;
+      if (px1 < -140 || px0 > C.W + 140) continue;
       if (p.solid) {
         const y = p.y - gd.top - 2, covL = plats.some((q) => q !== p && q.solid && q.x0 < p.x0 - 4 && q.x1 > p.x0 + 4), covR = plats.some((q) => q !== p && q.solid && q.x0 < p.x1 - 4 && q.x1 > p.x1 + 4);
-        const a = covL ? px0 : px0 + CAPW, b = covR ? px1 : px1 - CAPW, ca = Math.max(a, -4), cb = Math.min(b, W + 4);
+        const a = covL ? px0 : px0 + CAPW, b = covR ? px1 : px1 - CAPW, ca = Math.max(a, -4), cb = Math.min(b, C.W + 4);
         if (cb > ca) {
           ctx.save(); ctx.beginPath(); ctx.rect(ca, y, cb - ca, H - y + 4); ctx.clip();
           for (let wx = a + Math.floor((ca - a) / 128) * 128; wx < cb; wx += 128) ctx.drawImage(gd.c, wx, y);
           ctx.restore();
         }
         if (!covL && px0 > -CAPW - 4) ctx.drawImage(cp.c, px0, y);
-        if (!covR && px1 < W + CAPW + 4) { ctx.save(); ctx.translate(px1, y); ctx.scale(-1, 1); ctx.drawImage(cp.c, 0, 0); ctx.restore(); }
+        if (!covR && px1 < C.W + CAPW + 4) { ctx.save(); ctx.translate(px1, y); ctx.scale(-1, 1); ctx.drawImage(cp.c, 0, 0); ctx.restore(); }
       } else {
         let S = lg, x0 = px0, x1 = px1;
         if (p.t === 'move') S = TA.mover;
@@ -346,14 +355,14 @@
       }
     }
     for (const T of this.st.traps) {
-      if (T.k === 'spikes') { const sp = TA.spike, a = sn(T.x0 - cam); if (a > W + 20 || T.x1 - cam < -20) continue; for (let x = a; x < sn(T.x1 - cam) - 6; x += 12) ctx.drawImage(sp.c, x - sp.ox, T.y - sp.oy); }
-      else if (T.k === 'flame') { if (Math.abs(T.x - cam - W / 2) < W / 2 + 40) PX.draw(ctx, TA.vent, T.x - cam, T.y + 2, 1); }
-      else if (T.k === 'spring') { if (T.x1 - cam > -30 && T.x0 - cam < W + 30) PX.draw(ctx, TA.spring[T.t > 0 ? 1 : 0], (T.x0 + T.x1) / 2 - cam, T.y + 2, 1); }
+      if (T.k === 'spikes') { const sp = TA.spike, a = sn(T.x0 - cam); if (a > C.W + 20 || T.x1 - cam < -20) continue; for (let x = a; x < sn(T.x1 - cam) - 6; x += 12) ctx.drawImage(sp.c, x - sp.ox, T.y - sp.oy); }
+      else if (T.k === 'flame') { if (Math.abs(T.x - cam - C.W / 2) < C.W / 2 + 40) PX.draw(ctx, TA.vent, T.x - cam, T.y + 2, 1); }
+      else if (T.k === 'spring') { if (T.x1 - cam > -30 && T.x0 - cam < C.W + 30) PX.draw(ctx, TA.spring[T.t > 0 ? 1 : 0], (T.x0 + T.x1) / 2 - cam, T.y + 2, 1); }
     }
   };
   function stripDraw(ctx, S, px0, px1, y, CAPW) {
     ctx.drawImage(S.left.c, px0, y);
-    for (let wx = px0 + CAPW; wx < px1 - CAPW; wx += 64) { const w = Math.min(64, px1 - CAPW - wx); if (wx + w > -4 && wx < W + 4) ctx.drawImage(S.mid.c, 0, 0, w, 30, wx, y, w, 30); }
+    for (let wx = px0 + CAPW; wx < px1 - CAPW; wx += 64) { const w = Math.min(64, px1 - CAPW - wx); if (wx + w > -4 && wx < C.W + 4) ctx.drawImage(S.mid.c, 0, 0, w, 30, wx, y, w, 30); }
     ctx.drawImage(S.right.c, px1 - CAPW, y);
   }
 
@@ -364,12 +373,12 @@
     for (const T of this.st.traps) {
       if (T.k === 'flame') {
         const x = T.x - cam;
-        if (x < -40 || x > W + 40) continue;
+        if (x < -40 || x > C.W + 40) continue;
         if (T.s === 1) { ctx.fillStyle = this.st.theme === 4 ? '#6ae8ff' : '#ffa22a'; for (let i = 0; i < 3; i++) PXL.dot(ctx, x - 8 + ((this.time * 40 + i * 7) % 16), T.y - 10 - ((this.time * 60 + i * 13) % 14), 1); }
         else if (T.s === 2) { ctx.globalCompositeOperation = 'lighter'; GFX.drawGlow(ctx, this.st.theme === 4 ? 'hsla(190,100%,60%,1)' : 'hsla(25,100%,55%,1)', x, T.y - 52, 46, 0.32); ctx.globalCompositeOperation = 'source-over'; PXL.draw(ctx, TA.flame[Math.floor(this.time * 14) % 4], x, T.y - 8, 1); }
       } else if (T.k === 'drop' && T.st < 3) {
         const x = T.x - cam;
-        if (x < -30 || x > W + 30) continue;
+        if (x < -30 || x > C.W + 30) continue;
         PXL.draw(ctx, TA.drop, x + (T.st === 1 ? Math.round(Math.sin(this.time * 80) * 2) : 0), T.y0 + T.dy, 1);
       }
     }
