@@ -20,6 +20,10 @@ Everything is generated in code: the pixel-art sprites, backdrops and terrain ar
 
 Desktop browsers with a keyboard only for now. The playfield stretches to fill the whole window, so ultrawide screens simply show more of the world. There is a secret code on the keyboard too: up, up, down, down, B, A, right, shift, enter.
 
+### On a phone or tablet
+
+Play in landscape. A floating stick on the left runs and aims (down to crouch or, with jump, drop through a ledge); **FIRE** and **JUMP** are on the right. The pause button opens the menu. The on-screen controls appear on touch devices automatically; Settings has size, opacity and a left-handed layout. Use your browser's *Add to Home Screen* to install it as a full-screen app.
+
 ## Gameplay
 
 - You have 3 lives and any hit is fatal. A new life drops in from the top with a few seconds of invulnerability, but you lose your weapon power-ups.
