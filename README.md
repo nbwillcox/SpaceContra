@@ -40,6 +40,7 @@ Play in landscape with two thumbs. The left stick runs (push it up to jump, down
   - **R** Rapid fire (faster firing for any weapon)
   - **B** Barrier (a short burst of invincibility)
   - **1UP** Extra life
+  - Weapons **stack**: every one you pick up keeps firing, all at once and at the fastest rate among them (so the machine gun speeds up the others). You lose them all when you die. Shots fly across the whole screen.
 - **Bosses** wait at the end of every stage: the Defense Wall (knock out the cannons, then the core), the Iron Walker (jump the shockwaves, shoot the head for double damage), the Alien Heart (it only takes damage when it opens up) and the Mothership. Then it all loops, tougher each time.
 - Extra lives at 20,000 and 50,000 points, and local top-10 high scores with arcade-style 3-letter initials (stored in your browser).
 

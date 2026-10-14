@@ -12,7 +12,7 @@
     this.lifeIdx = 0; this.nextLifeAt = C.EXTRA_LIFE_AT[0];
     this.banner = null; this.over = false; this.overDone = false; this.timer = 0;
     this.hi = G.scores.best();
-    this.player = { x: 120, y: FL, vx: 0, vy: 0, face: 1, onGround: true, jumped: false, prone: false, aim: 0, phase: 0, weapon: 'N', rapid: false, shield: 0, fireCd: 0, alive: true, respawn: 0, invuln: 2, dropT: 0, t: 0, moving: false, jt: 0, noCut: false, jb: 0, cy: 0 };
+    this.player = { x: 120, y: FL, vx: 0, vy: 0, face: 1, onGround: true, jumped: false, prone: false, aim: 0, phase: 0, wp: {}, rapid: false, shield: 0, fireCd: 0, alive: true, respawn: 0, invuln: 2, dropT: 0, t: 0, moving: false, jt: 0, noCut: false, jb: 0, cy: 0 };
     FX.reset();
     this.startStage(startStage || 1);
   };
@@ -124,7 +124,7 @@
     const P = this.player, L = c.letter, info = GFX.art.CAPS[L];
     A.sfx.capsule(); FX.sparks(c.x - this.cam.x, c.y, 10, 150, 'hsla(50,100%,70%,1)', 0.45);
     FX.text(P.x - this.cam.x, P.y - 60, info.name, info.c, 15);
-    if (L === 'R') P.rapid = true; else if (L === 'B') P.shield = 12; else if (L === '1UP') { this.lives = Math.min(9, this.lives + 1); A.sfx.extraLife(); } else P.weapon = L;
+    if (L === 'R') P.rapid = true; else if (L === 'B') P.shield = 12; else if (L === '1UP') { this.lives = Math.min(9, this.lives + 1); A.sfx.extraLife(); } else P.wp[L] = true;                     /* weapons stack: every one you pick up keeps firing */
     this.addScore(200);
   };
 
@@ -132,7 +132,7 @@
   Game.killPlayer = function () {
     const P = this.player;
     if (!P.alive || P.invuln > 0 || P.shield > 0 || (G.debug && G.debug.god)) return;
-    P.alive = false; P.weapon = 'N'; P.rapid = false;
+    P.alive = false; P.wp = {}; P.rapid = false;
     FX.explosion(P.x - this.cam.x, P.y - 20, 1.7, 15); A.sfx.playerDie(); FX.addShake(7); FX.doFlash(0.25, '255,200,200');
     if (!G.cheat.inf) this.lives--;
     if (this.lives <= 0) { this.over = true; this.overT = 2.2; A.music('off'); setTimeout(() => A.sfx.gameOver(), 600); }
@@ -145,17 +145,25 @@
     for (let cx = this.cam.x + 90; cx < this.cam.x + 600; cx += 20) if (!bad(cx) && this.st.plats.some((p) => !p.t && cx > p.x0 + 10 && cx < p.x1 - 10 && p.y >= FL - 110)) { x = cx; break; }
     Object.assign(P, { x, y: -50, vx: 0, vy: 0, alive: true, invuln: 2.8, onGround: false, jumped: false, prone: false });
   };
-  const WEAPON = { N: { rate: 4.2 }, M: { rate: 9 }, S: { rate: 3.2 }, L: { rate: 3 }, F: { rate: 5.2 } };
+  /* Weapons stack. With none you have the plain rifle; each capsule adds its weapon and one trigger pull fires all of them (machine gun stream + spread fan + piercing laser + flame spiral),
+     at the fastest rate among them. Shots fly on until they leave the screen. */
+  const RATE = { N: 4.2, M: 9, S: 3.2, L: 3, F: 5.2 }, FAR = 4;
+  Game.owned = (P) => ['S', 'M', 'L', 'F'].filter((k) => P.wp[k]);
   Game.shoot = function (P) {
     const f = P.face, ad = P.ad || { x: f, y: 0 }, dx = ad.x, dy = ad.y, ox = P.x + f * 4 + dx * 22, oy = P.y - (P.prone ? 10 : 22) + dy * 22, ang = Math.atan2(dy, dx);
-    const w = P.weapon, shot = (da, sp, dmg, kind, life, extra) => this.pb.push(Object.assign({ x: ox, y: oy, vx: Math.cos(ang + da) * sp, vy: Math.sin(ang + da) * sp, ang: ang + da, dmg, kind, life, r: 5, pierce: false, hit: null, dead: false, t: 0 }, extra || {}));
-    if (w === 'N') { if (this.pb.filter((b) => b.kind === 'N').length >= 4) return; shot(0, 640, 1, 'N', 0.9); }
-    else if (w === 'M') shot(U.rand(-0.04, 0.04), 660, 1, 'M', 0.9);
-    else if (w === 'S') for (const da of [-0.36, -0.18, 0, 0.18, 0.36]) shot(da, 580, 1, 'S', 0.75);
-    else if (w === 'L') shot(0, 950, 2.4, 'L', 0.3, { pierce: true, hit: [], r: 7 });
-    else shot(0, 430, 1.4, 'F', 0.8, { r: 9, ph: Math.random() * TAU });
-    P.fireCd = 1 / (WEAPON[w].rate * (P.rapid ? 1.6 : 1)); P.mz = 0.08;
-    A.sfx.gun(w);
+    const shot = (da, sp, dmg, kind, life, extra) => this.pb.push(Object.assign({ x: ox, y: oy, vx: Math.cos(ang + da) * sp, vy: Math.sin(ang + da) * sp, ang: ang + da, dmg, kind, life, r: 5, pierce: false, hit: null, dead: false, t: 0 }, extra || {}));
+    const own = this.owned(P);
+    let rate = RATE.N;
+    if (!own.length) { if (this.pb.filter((b) => b.kind === 'N').length >= 8) return; shot(0, 640, 1, 'N', FAR); }
+    else {
+      rate = Math.max(...own.map((k) => RATE[k]));
+      if (P.wp.M) shot(U.rand(-0.04, 0.04), 660, 1, 'M', FAR);
+      if (P.wp.S) for (const da of [-0.36, -0.18, 0, 0.18, 0.36]) shot(da, 580, 1, 'S', FAR);
+      if (P.wp.L) shot(0, 950, 2.4, 'L', FAR, { pierce: true, hit: [], r: 7 });
+      if (P.wp.F) shot(0, 430, 1.4, 'F', FAR, { r: 9, ph: Math.random() * TAU });
+    }
+    P.fireCd = 1 / (rate * (P.rapid ? 1.6 : 1)); P.mz = 0.08;
+    A.sfx.gun(own.length ? own[0] : 'N');
   };
 
   Game.updatePlayer = function (dt, inp) {

@@ -43,9 +43,10 @@
       ctx.fillStyle = WHT; ctx.fillRect(bx + Math.floor(192 * k / 2) * 2 - 2, by - 4, 4, 14);
     }
     // weapon row
-    const wl = P.weapon, col = wl === 'N' ? '#d8e4ff' : A.CAPS[wl].c;
+    const own = g.owned(P);
     let ry = 82;
-    if (wl === 'N') T(ctx, 'RIFLE', 16, ry - 6, col); else { PX.draw(ctx, A.fl.cap[wl], 34, ry, 1); T(ctx, A.CAPS[wl].name, 66, ry - 6, col); }
+    if (!own.length) T(ctx, 'RIFLE', 16, ry - 6, '#d8e4ff');
+    else own.forEach((wl, i) => { if (i) ry += 26; PX.draw(ctx, A.fl.cap[wl], 34, ry, 1); T(ctx, A.CAPS[wl].name, 66, ry - 6, A.CAPS[wl].c); });
     if (P.rapid) { ry += 26; PX.draw(ctx, A.fl.cap.R, 34, ry, 1); T(ctx, 'RAPID FIRE', 66, ry - 6, '#d8e8ff'); }
     if (P.shield > 0) { ry += 26; PX.draw(ctx, A.fl.cap.B, 34, ry, 1); T(ctx, 'BARRIER', 66, ry - 6, '#c88aff'); bar(ctx, 66, ry + 10, 84, 4, P.shield / 12, '#c88aff'); }
     if (g.boss) {
