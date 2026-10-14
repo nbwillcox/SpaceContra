@@ -11,18 +11,18 @@ Everything is generated in code: the pixel-art sprites, backdrops and terrain ar
 | Action | Keys |
 | --- | --- |
 | Run left / right | `←` `→` or `A` `D` |
-| Aim up (up-forward while running) | `↑` or `W` |
-| Aim down (down-forward while running or in the air), lie prone on the ground | `↓` or `S` |
-| Fire (hold to keep firing) | `X`, `J` or left mouse button |
-| Jump | `Space`, `Z` or `K` |
+| Aim (360 degrees: the cannon follows the cursor) | mouse |
+| Fire (hold to keep firing) | left mouse button, `X` or `J` |
+| Jump | `Space`, `↑`, `W`, `Z` or `K` |
+| Lie prone | `↓` or `S` |
 | Drop through a ledge | `↓` + jump |
 | Pause | `P` or `Esc` |
 
-Desktop browsers with a keyboard only for now. The playfield stretches to fill the whole window, so ultrawide screens simply show more of the world. There is a secret code on the keyboard too: up, up, down, down, B, A, right, shift, enter.
+You run one way and can shoot the other: the astronaut turns to face the cursor and his legs backpedal. The playfield stretches to fill the whole window, so ultrawide screens simply show more of the world. There is a secret code on the keyboard too: up, up, down, down, B, A, right, shift, enter.
 
 ### On a phone or tablet
 
-Play in landscape. A floating stick on the left runs and aims (down to crouch or, with jump, drop through a ledge); **FIRE** and **JUMP** are on the right. The pause button opens the menu. The on-screen controls appear on touch devices automatically; Settings has size, opacity and a left-handed layout. Use your browser's *Add to Home Screen* to install it as a full-screen app.
+Play in landscape with two thumbs. The left stick runs (push it up to jump, down to lie prone); the right stick aims in any direction and fires while it is pushed. **JUMP** is also a button, handy for dropping through a ledge (hold down on the left stick and tap it). The pause button opens the menu. The on-screen controls appear on touch devices automatically; Settings has size, opacity and a left-handed layout. Use your browser's *Add to Home Screen* to install it as a full-screen app.
 
 ## Gameplay
 

@@ -147,7 +147,7 @@
   };
   const WEAPON = { N: { rate: 4.2 }, M: { rate: 9 }, S: { rate: 3.2 }, L: { rate: 3 }, F: { rate: 5.2 } };
   Game.shoot = function (P) {
-    const f = P.face, a = P.aim, dx = Math.cos(a) * f, dy = Math.sin(a), ox = P.x + f * 4 + dx * 22, oy = P.y - (P.prone ? 10 : 22) + dy * 22, ang = Math.atan2(dy, dx);
+    const f = P.face, ad = P.ad || { x: f, y: 0 }, dx = ad.x, dy = ad.y, ox = P.x + f * 4 + dx * 22, oy = P.y - (P.prone ? 10 : 22) + dy * 22, ang = Math.atan2(dy, dx);
     const w = P.weapon, shot = (da, sp, dmg, kind, life, extra) => this.pb.push(Object.assign({ x: ox, y: oy, vx: Math.cos(ang + da) * sp, vy: Math.sin(ang + da) * sp, ang: ang + da, dmg, kind, life, r: 5, pierce: false, hit: null, dead: false, t: 0 }, extra || {}));
     if (w === 'N') { if (this.pb.filter((b) => b.kind === 'N').length >= 4) return; shot(0, 640, 1, 'N', 0.9); }
     else if (w === 'M') shot(U.rand(-0.04, 0.04), 660, 1, 'M', 0.9);
@@ -169,7 +169,10 @@
     if (P.jumped && !P.noCut && P.vy < -260 && !inp.held && P.jt > 0.06) P.vy *= C.JUMP_CUT, P.noCut = true;
     P.jt += dt;
     const run = (inp.r ? 1 : 0) - (inp.l ? 1 : 0);
-    P.moving = run !== 0 && P.onGround; if (run) P.face = run;
+    P.moving = run !== 0 && P.onGround;
+    const ad = inp.aim || null;                                           /* where the cursor / the aim stick points (unit vector), or null: shoot the way you face */
+    if (ad) { if (Math.abs(ad.x) > 0.12) P.face = ad.x > 0 ? 1 : -1; } else if (run) P.face = run;
+    P.back = !!(ad && run && run !== P.face);                             /* running away from where you aim: the legs backpedal */
     P.prone = P.onGround && inp.d && !run;
     P.vx = P.prone ? 0 : run * C.RUN;
     // jump with a little forgiveness: a press just before landing still counts, and so does one just after running off an edge
@@ -183,11 +186,20 @@
     this.phys(P, dt);
     if (P.onGround) { P.jumped = false; P.noCut = false; }
     P.x = U.clamp(P.x, this.cam.x + 14, this.cam.x + C.W - 14);
-    P.phase += dt * 14;
-    P.aim = P.prone ? 0 : inp.u ? (run ? -Math.PI / 4 : -Math.PI / 2) : inp.d && (!P.onGround || run) ? (run ? Math.PI / 4 : Math.PI / 2) : 0;
+    P.phase += dt * 14 * (P.back ? -1 : 1);
+    P.ad = P.prone || !ad ? { x: P.face, y: 0 } : ad;                      /* prone you can only shoot along the ground */
+    P.aim = P.prone ? 0 : Math.atan2(P.ad.y, Math.abs(P.ad.x));            /* the same aim as a local angle for the sprite's arm */
     P.fireCd -= dt;
     if (inp.fire && P.fireCd <= 0) this.shoot(P);
     if (P.y > H + 70) { P.invuln = 0; P.shield = 0; this.killPlayer(); }
+  };
+
+  /* the aim as a unit vector: the right stick on a touch screen, otherwise the mouse (from the shoulder to the cursor), otherwise null */
+  Game.aimInput = function () {
+    const P = this.player;
+    if (I.stick) { const m = Math.hypot(I.stick.x, I.stick.y); if (m > 0.2) return { x: I.stick.x / m, y: I.stick.y / m }; }
+    if (I.mouse.on && P.alive) { const dx = I.mouse.x + this.cam.x - P.x, dy = I.mouse.y - (P.y - 22), d = Math.hypot(dx, dy); if (d > 14) return { x: dx / d, y: dy / d }; }
+    return null;
   };
 
   Game.hurtBox = function () {
@@ -243,7 +255,7 @@
     this.time += dt;
     if (this.banner) { this.banner.t += dt; if (this.banner.t > this.banner.life) this.banner = null; }
     if (this.state === 'clear') { this.timer -= dt; FX.update(dt); this.updatePlats(dt); this.updatePlayer(dt, { l: false, r: false, u: false, d: false, fire: false, jump: false }); if (this.timer <= 0) this.startStage(this.stageNo + 1); return; }
-    const inp = this.demo ? this.autopilot() : { l: I.l, r: I.r, u: I.u, d: I.d, fire: I.fire, jump: I.takeJump(), held: I.jumpHeld };
+    const inp = this.demo ? this.autopilot() : { l: I.l, r: I.r, d: I.d, fire: I.fire, jump: I.takeJump(), held: I.jumpHeld, aim: this.aimInput() };
     this.updatePlats(dt);
     this.updatePlayer(dt, inp);
     this.updateTraps(dt);
@@ -309,7 +321,7 @@
     for (const T of this.st.traps) if (T.k === 'spikes' && T.x1 > P.x - 10 && T.x0 < P.x + 90 && P.onGround) jump = true;
     for (const T of this.st.traps) if (T.k === 'flame' && T.s >= 1 && T.x > P.x && T.x < P.x + 110) wait = true;
     for (const e of this.en) { if (e.dead) continue; const dx = e.x - P.x, c = E.center(e); if (e.type !== 'pod' && dx > 0 && dx < 110 && Math.abs(c.y - (P.y - 20)) < 40 && P.onGround) jump = true; if (c.y < P.y - 110 && Math.abs(dx) < 260) up = true; }
-    return { l: false, r: !wait && (!this.locked || this.player.x < this.st.arenaX + 600), u: up, d: false, fire: true, jump, held: true };
+    return { l: false, r: !wait && (!this.locked || this.player.x < this.st.arenaX + 600), d: false, fire: true, aim: up ? { x: 0.7071, y: -0.7071 } : null, jump, held: true };
   };
 
   /* ---------- rendering (logical 960x540 space) ---------- */
@@ -408,7 +420,7 @@
       A.drawAstro(ctx, { x: P.x - cam, y: P.y, face: P.face, aim: P.aim, phase: P.phase, prone: P.prone, spin: P.jumped && !P.onGround, air: !P.onGround, moving: P.moving, t: P.t });
       ctx.globalAlpha = 1;
       if (P.mz > 0) {
-        const f = P.face, dx = Math.cos(P.aim) * f, dy = Math.sin(P.aim), mi = P.mz > 0.05 ? 0 : P.mz > 0.025 ? 1 : 2;
+        const f = P.face, dx = P.ad.x, dy = P.ad.y, mi = P.mz > 0.05 ? 0 : P.mz > 0.025 ? 1 : 2;
         PXL.draw(ctx, A.muzzle[mi], P.x - cam + f * 4 + dx * 24, P.y - (P.prone ? 10 : 22) + dy * 24, 1);
       }
       if (P.shield > 0) {
@@ -420,5 +432,20 @@
     FX.drawAdd(ctx);
     ctx.globalCompositeOperation = 'source-over';
     FX.drawText(ctx);
+    if (!this.demo && P.alive && G.main && G.main.mode === 'play') {
+      if (I.mouse.on && !I.stick) reticle(ctx, I.mouse.x, I.mouse.y);
+      else if (I.stick && Math.hypot(I.stick.x, I.stick.y) > 0.2) { const m = Math.hypot(I.stick.x, I.stick.y), ax = P.x - cam + I.stick.x / m * 78, ay = P.y - 22 + I.stick.y / m * 78; reticle(ctx, ax, ay, true); }
+    }
   };
+  /* the aiming reticle: a cross with a gap, outlined so it reads on any backdrop */
+  function reticle(ctx, x, y, small) {
+    const a = small ? 6 : 10, b = small ? 2 : 3;
+    x = Math.round(x); y = Math.round(y);
+    for (const [col, o] of [['#0a0e2c', 1], ['#ffd24a', 0]]) {
+      ctx.fillStyle = col;
+      ctx.fillRect(x - a - o, y - 1 - o, a - b + 2 * o, 2 + 2 * o); ctx.fillRect(x + b - o, y - 1 - o, a - b + 2 * o, 2 + 2 * o);
+      ctx.fillRect(x - 1 - o, y - a - o, 2 + 2 * o, a - b + 2 * o); ctx.fillRect(x - 1 - o, y + b - o, 2 + 2 * o, a - b + 2 * o);
+    }
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(x - 1, y - 1, 2, 2);
+  }
 })((window.SGS = window.SGS || {}));

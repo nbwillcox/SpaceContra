@@ -51,9 +51,9 @@
         const r = rnd(), onLedge = ledges.length && rnd() < 0.5, lp = onLedge ? U.pick(ledges) : null, ey = lp ? lp.y : FL, exx = lp ? U.clamp(ex, lp.x0 + 30, lp.x1 - 30) : ex;
         if (r < 0.28) events.push({ x: ex, type: 'runners', n: ri(2, 2 + Math.floor(d)), y: FL });
         else if (r < 0.88 && !lp && !clear(exx)) continue;
-        else if (r < 0.46) events.push({ x: exx, type: 'sniper', y: ey });
-        else if (r < 0.60) events.push({ x: exx, type: 'turret', y: ey });
-        else if (r < 0.74) events.push({ x: exx, type: 'pillbox', y: ey, cap: rnd() < 0.55 ? U.pick(letters) : null });
+        else if (r < 0.46) events.push({ x: exx, type: 'sniper', y: ey, lo: lp ? lp.x0 + 30 : undefined, hi: lp ? lp.x1 - 30 : undefined });
+        else if (r < 0.60) events.push({ x: exx, type: 'turret', y: ey, lo: lp ? lp.x0 + 30 : undefined, hi: lp ? lp.x1 - 30 : undefined });
+        else if (r < 0.74) events.push({ x: exx, type: 'pillbox', y: ey, cap: rnd() < 0.55 ? U.pick(letters) : null, lo: lp ? lp.x0 + 30 : undefined, hi: lp ? lp.x1 - 30 : undefined });
         else if (r < 0.88) events.push({ x: ex, type: 'flyers', n: ri(3, 4 + Math.floor(d)) });
         else events.push({ x: ex, type: 'leaper', y: FL });
       }
@@ -64,8 +64,26 @@
     }
     plats.push({ x0: x - 40, x1: arenaX + 1700, y: FL, solid: true });
     plats.push({ x0: arenaX + 130, x1: arenaX + 340, y: FL - 190, solid: false }, { x0: arenaX + 380, x1: arenaX + 620, y: FL - 100, solid: false });
+    St.spread(events);
     events.sort((a, b) => a.x - b.x);
     return { n, len, arenaX, endX: arenaX + 1500, plats, events, traps, theme: th, boss: St.bossIdx(n) };
+  };
+
+  /* snipers, turrets and pillboxes never share a spot: two groups on one ledge could both clamp to the same end and stack (a pillbox with a turret inside it). A later one is moved along its own
+     ledge / floor stretch to the nearest free spot, or dropped when there is no room. Runs after generation, so the random sequence (and every other stage layout) is untouched. */
+  St.spread = function (events) {
+    const GAP = 120, isE = (e) => e.type === 'sniper' || e.type === 'turret' || e.type === 'pillbox', placed = [];
+    const free = (x, y) => !placed.some((q) => Math.abs(q.x - x) < GAP && Math.abs(q.y - y) < 8);
+    for (let i = 0; i < events.length; i++) {
+      const e = events[i]; if (!isE(e)) continue;
+      if (!free(e.x, e.y)) {
+        let nx = null;
+        for (let k = 1; k <= 8 && nx === null; k++) for (const sgn of [1, -1]) { const c = e.x + sgn * k * 40; if (c >= e.lo && c <= e.hi && free(c, e.y)) { nx = c; break; } }
+        if (nx === null) { events.splice(i--, 1); continue; }
+        e.x = nx;
+      }
+      placed.push(e);
+    }
   };
 
   /* a gap between two ground segments; returns its width. Every crossing stays well inside what a jump can do (a plain hop is 120 px at most; jump range is ~165 px). */

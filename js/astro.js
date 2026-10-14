@@ -51,10 +51,17 @@
     p.set(OX + 1, OY - 19 + by, C.y); p.set(OX + 2, OY - 20 + by, C.y); p.set(OX + 2, OY - 19 + by, VISOR[1]); p.set(OX + 5, OY - 16 + by, VISOR[1]);
     p.set(OX - 3, OY - 22 + by, ORNG[1]); p.set(OX - 3, OY - 23 + by, ORNG[2]);
   }
-  const DIRS = [[1, 0], [0.7071, -0.7071], [0, -1], [0.7071, 0.7071], [0, 1]];
-  const PIV = [[2, -11], [2, -11], [5, -9], [3, -10], [4, -9]];
+  /* nine arm poses, every 22.5 degrees from straight up to straight down (index 4 = forward); the shoulder pivot is interpolated between the hand-tuned ones */
+  const NA = 9, AIMS = [];
+  const KEYP = [[-90, [5, -9]], [-45, [2, -11]], [0, [2, -11]], [45, [3, -10]], [90, [4, -9]]];
+  for (let i = 0; i < NA; i++) {
+    const deg = (i - 4) * 22.5, a = deg * Math.PI / 180;
+    let k = 0; while (k < KEYP.length - 2 && deg > KEYP[k + 1][0]) k++;
+    const [d0, p0] = KEYP[k], [d1, p1] = KEYP[k + 1], u = (deg - d0) / (d1 - d0);
+    AIMS.push({ d: [Math.cos(a), Math.sin(a)], s: [p0[0] + (p1[0] - p0[0]) * u, p0[1] + (p1[1] - p0[1]) * u] });
+  }
   function gun(p, ai, by) {
-    const d = DIRS[ai], s = PIV[ai], sx = OX + s[0], sy = OY + s[1] + (by || 0), at = (t) => [sx + d[0] * t, sy + d[1] * t];
+    const d = AIMS[ai].d, s = AIMS[ai].s, sx = OX + s[0], sy = OY + s[1] + (by || 0), at = (t) => [sx + d[0] * t, sy + d[1] * t];
     const L = (t0, t1, w, col) => { const a = at(t0), b = at(t1); p.line(a[0], a[1], b[0], b[1], w, col); };
     L(0, 3, 2, SUIT[3]);                        // forearm
     L(2, 8, 3, METAL[4]); L(2, 8, 2, METAL[3]); L(3, 7, 1, METAL[1]);  // receiver
@@ -66,7 +73,7 @@
   A.muzzle = [];
   A.initAstro = function () {
     const fr = [];
-    for (let ai = 0; ai < 5; ai++) {
+    for (let ai = 0; ai < NA; ai++) {
       fr[ai] = [];
       for (let f = 0; f < 8; f++) {
         const p = new Pix(W, H), front = legs(p, f), bob = (f === 2 || f === 5) ? 1 : 0;
@@ -104,7 +111,7 @@
     const f = s.face, a = A.astro;
     if (s.spin) { PX.draw(ctx, a.spin[Math.floor(s.t * 22) & 7], s.x, s.y - 2 * K * 0 - 16, f); return; }
     if (s.prone) { PX.draw(ctx, a.prone, s.x, s.y, f); return; }
-    const ai = s.aim < -1.2 ? 2 : s.aim < -0.4 ? 1 : s.aim > 1.2 ? 4 : s.aim > 0.4 ? 3 : 0;
+    const ai = Math.max(0, Math.min(NA - 1, Math.round(s.aim / (Math.PI / 8)) + 4));
     const leg = s.air ? 7 : s.moving ? 1 + (Math.floor(s.phase / (Math.PI * 2) * 6) % 6 + 6) % 6 : 0;
     PX.draw(ctx, a.fr[ai][leg], s.x, s.y, f);
   };
