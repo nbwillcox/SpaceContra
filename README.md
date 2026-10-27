@@ -24,6 +24,10 @@ You run one way and can shoot the other: the astronaut turns to face the cursor 
 
 Play in landscape with two thumbs. The left stick runs (push it up to jump, down to lie prone); the right stick aims in any direction and fires while it is pushed. **JUMP** is also a button, handy for dropping through a ledge (hold down on the left stick and tap it). The pause button opens the menu. The on-screen controls appear on touch devices automatically; Settings has size, opacity and a left-handed layout. Use your browser's *Add to Home Screen* to install it as a full-screen app.
 
+### Controller
+
+Plug in a gamepad and it just works: left stick runs (down = prone), the right stick aims and fires in any direction, **A** jumps (down + **A** drops through a ledge), **X / RT** fires straight ahead, **Start** pauses. In menus the D-pad / left stick moves the highlight, **A** selects, **B** goes back and **Start** plays or resumes. **Settings -> Controller** has a dead-zone slider and lets you remap every button.
+
 ## Gameplay
 
 - You have 3 lives and any hit is fatal. A new life drops in from the top with a few seconds of invulnerability, but you lose your weapon power-ups.
